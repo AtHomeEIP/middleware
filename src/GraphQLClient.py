@@ -1,5 +1,6 @@
 import requests
-
+import datetime
+import time
 
 class GraphQLClient():
 
@@ -28,6 +29,7 @@ class GraphQLClient():
             }
         }
         '''
+        json_payload = json_payload.replace("\"", "\\\"")
         json_post_data %= (date, json_payload, module_id)
 
         response = requests.post(self.api_url, json={"query": json_post_data})

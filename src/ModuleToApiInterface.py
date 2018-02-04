@@ -1,13 +1,14 @@
 import glob
 import sys
+import datetime, time
 import serial, serial.tools
 
 from GraphQLClient import GraphQLClient
-
+from ModuleTranslator import ModuleTranslator
 from Tools import eprint
 
 
-class ModuleInterface:
+class ModuleToApiInterface:
     class Error(Exception):
         pass
 
@@ -64,7 +65,18 @@ class ModuleInterface:
                 i = 0
                 while i <= 60:
                     data = ard.readline()
-                    print(data)
+                    # TODO Detect module's type
+                    threeSamplesToSend = ModuleTranslator.jsonEncodeData(data)
+                    if threeSamplesToSend is not None:
+
+                        # TODO parse and format the date to be sent by the module
+                        date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+
+                        # TODO detect the module's ID or MAC address
+                        # 4 is the id of the pollution module in the database
+                        self.api_client.send_sample(4, threeSamplesToSend[0], date)
+                        self.api_client.send_sample(4, threeSamplesToSend[1], date)
+                        self.api_client.send_sample(4, threeSamplesToSend[2], date)
                     i += 1
         except OSError as err:
             raise self.Error("could not read data from serial port {}: {}".format(serial_port, str(err)))
@@ -81,12 +93,12 @@ class ModuleInterface:
 if __name__ == "__main__":
 
     try:
-        moduleInterface = ModuleInterface("http://woodbox.io:8080/graphql")
+        moduleInterface = ModuleToApiInterface("http://woodbox.io:8080/graphql")
         print("running on platform: '{}'".format(sys.platform))
         moduleInterface.main_loop()
 
 
-    except ModuleInterface.Error as err:
+    except ModuleToApiInterface.Error as err:
         eprint(err)
         sys.exit(1)
     sys.exit(0)
