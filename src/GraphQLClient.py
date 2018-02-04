@@ -35,6 +35,3 @@ class GraphQLClient():
             raise self.Error("invalid return code from the API: {}".format(response.status_code))
 
 
-if __name__ == "__main__":
-    client = GraphQLClient()
-    client.send_sample(1, "lol", "lol")
