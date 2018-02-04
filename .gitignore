@@ -1,0 +1,10 @@
+# JetBrains
+.idea
+
+
+# Emacs
+*~
+*#*
+
+# Python
+*.pyc
