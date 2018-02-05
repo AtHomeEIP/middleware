@@ -12,6 +12,7 @@ class ModuleToApiInterface:
     class Error(Exception):
         pass
 
+    NUMBER_OF_SAMPLES_TO_READ_BY_POLL = 60
     SUPPORTED_PLATFORMS = [
         "win"
         , "linux"
@@ -34,11 +35,11 @@ class ModuleToApiInterface:
                 s = serial.Serial(port_file)
                 s.close()
                 self.list_of_serial_ports.append(port_file)
-            except OSError as err:
+            except serial.SerialException as err:
                 raise self.Error("Error while interfacing: {}".format(str(err)))
 
     def get_serial_port_file_path_list(self):
-        port_serial_file_path_list = None
+        port_serial_file_path_list = []
         if sys.platform.startswith('win'):
             port_serial_file_path_list = ['COM%s' % (i + 1) for i in range(256)]
         elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
@@ -48,38 +49,56 @@ class ModuleToApiInterface:
         else:
             raise self.Error('Unsupported platform')
         if len(port_serial_file_path_list) == 0:
-            raise self.Error("no port file found")
+            raise self.Error("no port file paths found")
         return port_serial_file_path_list
 
-    def is_platform_supported(self, platform):
-        for supported_platform in self.SUPPORTED_PLATFORMS:
-            if platform.startswith(supported_platform):
-                return True
-        return False
+    @staticmethod
+    def is_platform_supported(platform):
+        """
+        determines if a platform is supported or not by this script.
+        :param platform: A String representing the name of the current platform
+        :return: True if this platform is supported, False otherwise
+        """
+        return platform in ModuleToApiInterface.SUPPORTED_PLATFORMS
+
+    def read_data_from_this_serial_port(self, serial_port_file_path):
+        """
+        Reads data from a specific serial port, and sends it to the API.
+        :param serial_port_file_path: the file path of the serial port to read from.
+        :return: Nothing. Will return the raw read data in the future
+        :raises: ModuleToApiInterface.Error should an error happen.
+        """
+        try:
+            serial_descriptor = serial.Serial(serial_port_file_path)
+        except serial.SerialException as error:
+            raise self.Error(str(error))
+        for i in range(self.NUMBER_OF_SAMPLES_TO_READ_BY_POLL):
+            raw_module_data = serial_descriptor.readline()
+            # TODO Detect module's type. Pollution sensor for now
+            three_samples_to_send = ModuleTranslator.raw_module_data_to_json(raw_module_data)
+            if three_samples_to_send is not None:
+                # TODO parse and format the date to be sent by the module
+                date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+                # TODO detect the module's ID or MAC address to associate it to the sample
+                # 4 is the id of the pollution module in the database
+                # TODO separate API calls from this method (semantic/readability fuckup right now)
+                try:
+                    self.api_client.send_sample(4, three_samples_to_send[0], date)
+                    self.api_client.send_sample(4, three_samples_to_send[1], date)
+                    self.api_client.send_sample(4, three_samples_to_send[2], date)
+                except GraphQLClient.Error as err:
+                    raise self.Error(str(err))
 
     def read_data_from_serial_ports(self):
         serial_port = ""
         try:
             for serial_port in self.list_of_serial_ports:
-                ard = serial.Serial(serial_port)
-                i = 0
-                while i <= 60:
-                    data = ard.readline()
-                    # TODO Detect module's type
-                    threeSamplesToSend = ModuleTranslator.jsonEncodeData(data)
-                    if threeSamplesToSend is not None:
-
-                        # TODO parse and format the date to be sent by the module
-                        date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-
-                        # TODO detect the module's ID or MAC address
-                        # 4 is the id of the pollution module in the database
-                        self.api_client.send_sample(4, threeSamplesToSend[0], date)
-                        self.api_client.send_sample(4, threeSamplesToSend[1], date)
-                        self.api_client.send_sample(4, threeSamplesToSend[2], date)
-                    i += 1
-        except OSError as err:
-            raise self.Error("could not read data from serial port {}: {}".format(serial_port, str(err)))
+                # \/ also sends the data to the api, will have to change in the future \/
+                self.read_data_from_this_serial_port(serial_port)
+                # api calls should be below, like this
+                # self.send_sample_to_api(sample)
+        except ModuleToApiInterface.Error as error:
+            raise self.Error("could not read data from serial port {}: {}".format(serial_port, str(error)))
 
     def main_loop(self):
         done = False
@@ -93,11 +112,9 @@ class ModuleToApiInterface:
 if __name__ == "__main__":
 
     try:
-        moduleInterface = ModuleToApiInterface("http://woodbox.io:8080/graphql")
+        moduleInterface = ModuleToApiInterface(api_url="http://woodbox.io:8080/graphql")
         print("running on platform: '{}'".format(sys.platform))
         moduleInterface.main_loop()
-
-
     except ModuleToApiInterface.Error as err:
         eprint(err)
         sys.exit(1)
