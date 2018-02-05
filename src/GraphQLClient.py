@@ -3,6 +3,10 @@ import datetime
 import time
 
 class GraphQLClient():
+    """
+    Class designed to interact with atHome's GraphQL BoxApi
+    Only used to send samples at this moment
+    """
 
     class Error(Exception):
         pass

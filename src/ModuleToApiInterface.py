@@ -9,10 +9,17 @@ from Tools import eprint
 
 
 class ModuleToApiInterface:
+    """
+    Class used to harvest the raw environmental samples from atHome's modules,
+    processing these samples and sending them to the BoxApi.
+    """
+
     class Error(Exception):
         pass
 
+    """ How many lines are read from each module at a time """
     NUMBER_OF_SAMPLES_TO_READ_BY_POLL = 60
+
     SUPPORTED_PLATFORMS = [
         "win"
         , "linux"
@@ -29,6 +36,12 @@ class ModuleToApiInterface:
         self.scan_serial_ports()
 
     def scan_serial_ports(self):
+        """
+        Checks if the availables serial ports can be opened, and stores those which can
+        into an array for later use.
+        :return: Nothing
+        :raise ModuleToApiInterface.Error should a serial port not be accessed
+        """
         list_of_port_files = self.get_serial_port_file_path_list()
         for port_file in list_of_port_files:
             try:
@@ -39,6 +52,12 @@ class ModuleToApiInterface:
                 raise self.Error("Error while interfacing: {}".format(str(err)))
 
     def get_serial_port_file_path_list(self):
+        """
+
+        :return: An array of Strings containing all available serial ports file paths
+        :raises: ModuleToApiInterface.Error if no ports where found OR if the current
+        platform is not supported.
+        """
         port_serial_file_path_list = []
         if sys.platform.startswith('win'):
             port_serial_file_path_list = ['COM%s' % (i + 1) for i in range(256)]
@@ -90,6 +109,11 @@ class ModuleToApiInterface:
                     raise self.Error(str(err))
 
     def read_data_from_serial_ports(self):
+        """
+        Undocumented, as this method will change later.
+        As of now, reads data from all the available modules, processes it and sends it to the BoxApi.
+        :return:
+        """
         serial_port = ""
         try:
             for serial_port in self.list_of_serial_ports:
@@ -101,12 +125,16 @@ class ModuleToApiInterface:
             raise self.Error("could not read data from serial port {}: {}".format(serial_port, str(error)))
 
     def main_loop(self):
+        """
+        Harvests the raw from the modules,
+        process this data so it can be sent to the BoxApi
+        sends the processed data to the BoxApi
+        :return: Nothing.
+        """
         done = False
-
         while not done:
             # TODO: harvest modules data, format the data, send to the boxapi
             dataSamples = self.read_data_from_serial_ports()
-            pass
 
 
 if __name__ == "__main__":

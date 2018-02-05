@@ -2,6 +2,10 @@ import re
 import json
 
 class ModuleTranslator:
+    """
+    Class used to translate the raw data harvested from the modules into
+    processed data ready to be sent to the API
+    """
 
     GAS_REGEX = "LPG:([0-9]+)ppm[ \t]+CO:([0-9]+)ppm[ \t]+SMOKE:([0-9]+)ppm"
 
