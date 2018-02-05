@@ -80,7 +80,7 @@ class ModuleToApiInterface:
         """
         return platform in ModuleToApiInterface.SUPPORTED_PLATFORMS
 
-    def read_data_from_this_serial_port(self, serial_port_file_path):
+    def read_data_from_serial_port(self, serial_port_file_path):
         """
         Reads data from a specific serial port, and sends it to the API.
         :param serial_port_file_path: the file path of the serial port to read from.
@@ -93,6 +93,7 @@ class ModuleToApiInterface:
             raise self.Error(str(error))
         for i in range(self.NUMBER_OF_SAMPLES_TO_READ_BY_POLL):
             raw_module_data = serial_descriptor.readline()
+            print("raw data fetched: " + str(raw_module_data))
             # TODO Detect module's type. Pollution sensor for now
             three_samples_to_send = ModuleTranslator.raw_module_data_to_json(raw_module_data)
             if three_samples_to_send is not None:
@@ -101,14 +102,16 @@ class ModuleToApiInterface:
                 # TODO detect the module's ID or MAC address to associate it to the sample
                 # 4 is the id of the pollution module in the database
                 # TODO separate API calls from this method (semantic/readability fuckup right now)
+                print("sending the processed data to: {}".format(self.api_url))
                 try:
                     self.api_client.send_sample(4, three_samples_to_send[0], date)
                     self.api_client.send_sample(4, three_samples_to_send[1], date)
                     self.api_client.send_sample(4, three_samples_to_send[2], date)
                 except GraphQLClient.Error as err:
                     raise self.Error(str(err))
+                print("Data sent")
 
-    def read_data_from_serial_ports(self):
+    def read_data_from_all_serial_ports(self):
         """
         Undocumented, as this method will change later.
         As of now, reads data from all the available modules, processes it and sends it to the BoxApi.
@@ -118,7 +121,7 @@ class ModuleToApiInterface:
         try:
             for serial_port in self.list_of_serial_ports:
                 # \/ also sends the data to the api, will have to change in the future \/
-                self.read_data_from_this_serial_port(serial_port)
+                self.read_data_from_serial_port(serial_port)
                 # api calls should be below, like this
                 # self.send_sample_to_api(sample)
         except ModuleToApiInterface.Error as error:
@@ -126,7 +129,7 @@ class ModuleToApiInterface:
 
     def main_loop(self):
         """
-        Harvests the raw from the modules,
+        Harvests the raw data from the modules,
         process this data so it can be sent to the BoxApi
         sends the processed data to the BoxApi
         :return: Nothing.
@@ -134,7 +137,7 @@ class ModuleToApiInterface:
         done = False
         while not done:
             # TODO: harvest modules data, format the data, send to the boxapi
-            dataSamples = self.read_data_from_serial_ports()
+            dataSamples = self.read_data_from_all_serial_ports()
 
 
 if __name__ == "__main__":
