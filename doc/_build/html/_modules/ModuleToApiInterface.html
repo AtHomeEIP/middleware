@@ -1,0 +1,239 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>ModuleToApiInterface &#8212; middleware  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for ModuleToApiInterface</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">datetime</span><span class="o">,</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">serial</span><span class="o">,</span> <span class="nn">serial.tools</span>
+
+<span class="kn">from</span> <span class="nn">GraphQLClient</span> <span class="k">import</span> <span class="n">GraphQLClient</span>
+<span class="kn">from</span> <span class="nn">ModuleTranslator</span> <span class="k">import</span> <span class="n">ModuleTranslator</span>
+<span class="kn">from</span> <span class="nn">Tools</span> <span class="k">import</span> <span class="n">eprint</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">@author: Gwendal QUERAT</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ModuleToApiInterface"><a class="viewcode-back" href="../ModuleToApiInterface.html#ModuleToApiInterface.ModuleToApiInterface">[docs]</a><span class="k">class</span> <span class="nc">ModuleToApiInterface</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class used to harvest the raw environmental samples from atHome&#39;s modules,</span>
+<span class="sd">    processing these samples and sending them to the BoxApi.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ModuleToApiInterface.Error"><a class="viewcode-back" href="../ModuleToApiInterface.html#ModuleToApiInterface.ModuleToApiInterface.Error">[docs]</a>    <span class="k">class</span> <span class="nc">Error</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+    <span class="sd">&quot;&quot;&quot; How many lines are read from each module at a time &quot;&quot;&quot;</span>
+    <span class="n">NUMBER_OF_SAMPLES_TO_READ_BY_POLL</span> <span class="o">=</span> <span class="mi">60</span>
+
+    <span class="n">SUPPORTED_PLATFORMS</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;win&quot;</span>
+        <span class="p">,</span> <span class="s2">&quot;linux&quot;</span>
+        <span class="p">,</span> <span class="s2">&quot;cygwin&quot;</span>
+        <span class="p">,</span> <span class="s2">&quot;darwin&quot;</span>
+    <span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">api_url</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_platform_supported</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s2">&quot;unsupported platform: </span><span class="se">\&#39;</span><span class="si">{}</span><span class="se">\&#39;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_url</span> <span class="o">=</span> <span class="n">api_url</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span> <span class="o">=</span> <span class="n">GraphQLClient</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">api_url</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">list_of_serial_ports</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scan_serial_ports</span><span class="p">()</span>
+
+<div class="viewcode-block" id="ModuleToApiInterface.scan_serial_ports"><a class="viewcode-back" href="../ModuleToApiInterface.html#ModuleToApiInterface.ModuleToApiInterface.scan_serial_ports">[docs]</a>    <span class="k">def</span> <span class="nf">scan_serial_ports</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks if the availables serial ports can be opened, and stores those which can</span>
+<span class="sd">        into an array for later use.</span>
+<span class="sd">        :return: Nothing</span>
+<span class="sd">        :raise ModuleToApiInterface.Error should a serial port not be accessed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">list_of_port_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_serial_port_file_path_list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">port_file</span> <span class="ow">in</span> <span class="n">list_of_port_files</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">s</span> <span class="o">=</span> <span class="n">serial</span><span class="o">.</span><span class="n">Serial</span><span class="p">(</span><span class="n">port_file</span><span class="p">)</span>
+                <span class="n">s</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">list_of_serial_ports</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">port_file</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">serial</span><span class="o">.</span><span class="n">SerialException</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s2">&quot;Error while interfacing: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="ModuleToApiInterface.get_serial_port_file_path_list"><a class="viewcode-back" href="../ModuleToApiInterface.html#ModuleToApiInterface.ModuleToApiInterface.get_serial_port_file_path_list">[docs]</a>    <span class="k">def</span> <span class="nf">get_serial_port_file_path_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        :return: An array of Strings containing all available serial ports file paths</span>
+<span class="sd">        :raises: ModuleToApiInterface.Error if no ports where found OR if the current</span>
+<span class="sd">        platform is not supported.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">port_serial_file_path_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;win&#39;</span><span class="p">):</span>
+            <span class="n">port_serial_file_path_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;COM</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">256</span><span class="p">)]</span>
+        <span class="k">elif</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;linux&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;cygwin&#39;</span><span class="p">):</span>
+            <span class="n">port_serial_file_path_list</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;/dev/ttyACM*&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;darwin&#39;</span><span class="p">):</span>
+            <span class="n">port_serial_file_path_list</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;/dev/tty.*&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s1">&#39;Unsupported platform&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">port_serial_file_path_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s2">&quot;no port file paths found&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">port_serial_file_path_list</span></div>
+
+<div class="viewcode-block" id="ModuleToApiInterface.is_platform_supported"><a class="viewcode-back" href="../ModuleToApiInterface.html#ModuleToApiInterface.ModuleToApiInterface.is_platform_supported">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">is_platform_supported</span><span class="p">(</span><span class="n">platform</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        determines if a platform is supported or not by this script.</span>
+<span class="sd">        :param platform: A String representing the name of the current platform</span>
+<span class="sd">        :return: True if this platform is supported, False otherwise</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">platform</span> <span class="ow">in</span> <span class="n">ModuleToApiInterface</span><span class="o">.</span><span class="n">SUPPORTED_PLATFORMS</span></div>
+
+<div class="viewcode-block" id="ModuleToApiInterface.read_data_from_serial_port"><a class="viewcode-back" href="../ModuleToApiInterface.html#ModuleToApiInterface.ModuleToApiInterface.read_data_from_serial_port">[docs]</a>    <span class="k">def</span> <span class="nf">read_data_from_serial_port</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">serial_port_file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reads data from a specific serial port, and sends it to the API.</span>
+<span class="sd">        :param serial_port_file_path: the file path of the serial port to read from.</span>
+<span class="sd">        :return: Nothing. Will return the raw read data in the future</span>
+<span class="sd">        :raise: ModuleToApiInterface.Error should an error happen.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">serial_descriptor</span> <span class="o">=</span> <span class="n">serial</span><span class="o">.</span><span class="n">Serial</span><span class="p">(</span><span class="n">serial_port_file_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">serial</span><span class="o">.</span><span class="n">SerialException</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">NUMBER_OF_SAMPLES_TO_READ_BY_POLL</span><span class="p">):</span>
+            <span class="n">raw_module_data</span> <span class="o">=</span> <span class="n">serial_descriptor</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;raw data fetched: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">raw_module_data</span><span class="p">))</span>
+            <span class="c1"># TODO Detect module&#39;s type. Pollution sensor for now</span>
+            <span class="n">three_samples_to_send</span> <span class="o">=</span> <span class="n">ModuleTranslator</span><span class="o">.</span><span class="n">raw_module_data_to_json</span><span class="p">(</span><span class="n">raw_module_data</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">three_samples_to_send</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># TODO parse and format the date to be sent by the module</span>
+                <span class="n">date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S.</span><span class="si">%f</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="c1"># TODO detect the module&#39;s ID or MAC address to associate it to the sample</span>
+                <span class="c1"># 4 is the id of the pollution module in the database</span>
+                <span class="c1"># TODO separate API calls from this method (semantic/readability fuckup right now)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;sending the processed data to: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">api_url</span><span class="p">))</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">send_sample</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">three_samples_to_send</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">date</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">send_sample</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">three_samples_to_send</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">date</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">api_client</span><span class="o">.</span><span class="n">send_sample</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">three_samples_to_send</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">date</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">GraphQLClient</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Data sent&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ModuleToApiInterface.read_data_from_all_serial_ports"><a class="viewcode-back" href="../ModuleToApiInterface.html#ModuleToApiInterface.ModuleToApiInterface.read_data_from_all_serial_ports">[docs]</a>    <span class="k">def</span> <span class="nf">read_data_from_all_serial_ports</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Undocumented, as this method will change later.</span>
+<span class="sd">        As of now, reads data from all the available modules, processes it and sends it to the BoxApi.</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">serial_port</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">serial_port</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_of_serial_ports</span><span class="p">:</span>
+                <span class="c1"># \/ also sends the data to the api, will have to change in the future \/</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">read_data_from_serial_port</span><span class="p">(</span><span class="n">serial_port</span><span class="p">)</span>
+                <span class="c1"># api calls should be below, like this</span>
+                <span class="c1"># self.send_sample_to_api(sample)</span>
+        <span class="k">except</span> <span class="n">ModuleToApiInterface</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s2">&quot;could not read data from serial port </span><span class="si">{}</span><span class="s2">: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">serial_port</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="ModuleToApiInterface.main_loop"><a class="viewcode-back" href="../ModuleToApiInterface.html#ModuleToApiInterface.ModuleToApiInterface.main_loop">[docs]</a>    <span class="k">def</span> <span class="nf">main_loop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Harvests the raw data from the modules,</span>
+<span class="sd">        process this data so it can be sent to the BoxApi</span>
+<span class="sd">        sends the processed data to the BoxApi</span>
+<span class="sd">        :return: Nothing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">done</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
+            <span class="c1"># TODO: harvest modules data, format the data, send to the boxapi</span>
+            <span class="n">dataSamples</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_data_from_all_serial_ports</span><span class="p">()</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">moduleInterface</span> <span class="o">=</span> <span class="n">ModuleToApiInterface</span><span class="p">(</span><span class="n">api_url</span><span class="o">=</span><span class="s2">&quot;http://woodbox.io:8080/graphql&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;running on platform: &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="p">))</span>
+        <span class="n">moduleInterface</span><span class="o">.</span><span class="n">main_loop</span><span class="p">()</span>
+    <span class="k">except</span> <span class="n">ModuleToApiInterface</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="n">eprint</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, querat.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.7</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

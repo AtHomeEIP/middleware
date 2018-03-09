@@ -1,0 +1,170 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>ModuleToApiInterface module &#8212; middleware  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-ModuleToApiInterface">
+<span id="moduletoapiinterface-module"></span><h1>ModuleToApiInterface module<a class="headerlink" href="#module-ModuleToApiInterface" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="ModuleToApiInterface.ModuleToApiInterface">
+<em class="property">class </em><code class="descclassname">ModuleToApiInterface.</code><code class="descname">ModuleToApiInterface</code><span class="sig-paren">(</span><em>api_url</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ModuleToApiInterface.html#ModuleToApiInterface"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ModuleToApiInterface.ModuleToApiInterface" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Class used to harvest the raw environmental samples from atHome’s modules,
+processing these samples and sending them to the BoxApi.</p>
+<dl class="exception">
+<dt id="ModuleToApiInterface.ModuleToApiInterface.Error">
+<em class="property">exception </em><code class="descname">Error</code><a class="reference internal" href="_modules/ModuleToApiInterface.html#ModuleToApiInterface.Error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ModuleToApiInterface.ModuleToApiInterface.Error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">Exception</span></code></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="ModuleToApiInterface.ModuleToApiInterface.NUMBER_OF_SAMPLES_TO_READ_BY_POLL">
+<code class="descname">NUMBER_OF_SAMPLES_TO_READ_BY_POLL</code><em class="property"> = 60</em><a class="headerlink" href="#ModuleToApiInterface.ModuleToApiInterface.NUMBER_OF_SAMPLES_TO_READ_BY_POLL" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="ModuleToApiInterface.ModuleToApiInterface.SUPPORTED_PLATFORMS">
+<code class="descname">SUPPORTED_PLATFORMS</code><em class="property"> = ['win', 'linux', 'cygwin', 'darwin']</em><a class="headerlink" href="#ModuleToApiInterface.ModuleToApiInterface.SUPPORTED_PLATFORMS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="ModuleToApiInterface.ModuleToApiInterface.get_serial_port_file_path_list">
+<code class="descname">get_serial_port_file_path_list</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/ModuleToApiInterface.html#ModuleToApiInterface.get_serial_port_file_path_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ModuleToApiInterface.ModuleToApiInterface.get_serial_port_file_path_list" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">An array of Strings containing all available serial ports file paths</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body">ModuleToApiInterface.Error if no ports where found OR if the current</td>
+</tr>
+</tbody>
+</table>
+<p>platform is not supported.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="ModuleToApiInterface.ModuleToApiInterface.is_platform_supported">
+<em class="property">static </em><code class="descname">is_platform_supported</code><span class="sig-paren">(</span><em>platform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ModuleToApiInterface.html#ModuleToApiInterface.is_platform_supported"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ModuleToApiInterface.ModuleToApiInterface.is_platform_supported" title="Permalink to this definition">¶</a></dt>
+<dd><p>determines if a platform is supported or not by this script.
+:param platform: A String representing the name of the current platform
+:return: True if this platform is supported, False otherwise</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="ModuleToApiInterface.ModuleToApiInterface.main_loop">
+<code class="descname">main_loop</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/ModuleToApiInterface.html#ModuleToApiInterface.main_loop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ModuleToApiInterface.ModuleToApiInterface.main_loop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Harvests the raw data from the modules,
+process this data so it can be sent to the BoxApi
+sends the processed data to the BoxApi
+:return: Nothing.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="ModuleToApiInterface.ModuleToApiInterface.read_data_from_all_serial_ports">
+<code class="descname">read_data_from_all_serial_ports</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/ModuleToApiInterface.html#ModuleToApiInterface.read_data_from_all_serial_ports"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ModuleToApiInterface.ModuleToApiInterface.read_data_from_all_serial_ports" title="Permalink to this definition">¶</a></dt>
+<dd><p>Undocumented, as this method will change later.
+As of now, reads data from all the available modules, processes it and sends it to the BoxApi.
+:return:</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="ModuleToApiInterface.ModuleToApiInterface.read_data_from_serial_port">
+<code class="descname">read_data_from_serial_port</code><span class="sig-paren">(</span><em>serial_port_file_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ModuleToApiInterface.html#ModuleToApiInterface.read_data_from_serial_port"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ModuleToApiInterface.ModuleToApiInterface.read_data_from_serial_port" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads data from a specific serial port, and sends it to the API.
+:param serial_port_file_path: the file path of the serial port to read from.
+:return: Nothing. Will return the raw read data in the future
+:raise: ModuleToApiInterface.Error should an error happen.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="ModuleToApiInterface.ModuleToApiInterface.scan_serial_ports">
+<code class="descname">scan_serial_ports</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/ModuleToApiInterface.html#ModuleToApiInterface.scan_serial_ports"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ModuleToApiInterface.ModuleToApiInterface.scan_serial_ports" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if the availables serial ports can be opened, and stores those which can
+into an array for later use.
+:return: Nothing
+:raise ModuleToApiInterface.Error should a serial port not be accessed</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, querat.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.7</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/ModuleToApiInterface.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
