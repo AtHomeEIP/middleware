@@ -160,14 +160,14 @@ def open_serial_port(name):
 
 
 def get_serial_ports():
-    """ LIst les ports séries disponible et leurs noms
+    """ List les ports séries disponible et leurs noms
     :raise EnvironmentError:
         Plateforme inconnue
     :return:
-        LAl ist des ports serial dispo sur le système
+        La list des ports serial dispo sur le système
     """
     if sys.platform.startswith('linux'):
-        ports = glob.glob('/dev/pts/*')
+        ports = glob.glob('/dev/tyyACM*')
     else:
         ports = []
     info_list = QSerialPortInfo()
