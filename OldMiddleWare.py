@@ -7,9 +7,11 @@ import sys
 import struct
 import json  # loads to decode json, dumps to encode
 import threading
+from datetime import datetime
 # from AtHome import get_wifi_parameters, get_default_profile
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
+from src.GraphQLClient import GraphQLClient
 
 
 class WiFiParameters:
@@ -177,6 +179,36 @@ def get_serial_ports():
     return serial_ports
 
 
+def sendToAPI(data):
+    client = GraphQLClient('http://localhost:8080/graphql')
+    # Assumes it's the MQ2, we still can't detect which module it is
+    # Currently timestamps are the number of milliseconds since the the arduino started or the counter overflowed,
+    # as AVR microcontrolers used by Arduino don't have a RTC
+    for sample in data:
+        try:
+            measures = json.loads(sample['Measure'])
+            client.send_sample(4, json.dumps({
+                'unit_measure': 'LPG(ppm)',
+                'measure': str(measures['lpg']),
+                'name': 'pollution'
+            }), datetime.fromtimestamp((time.time() * 1000 - int(sample['Timestamp'])) / 1000).strftime(
+                '%Y-%m-%d %H:%M:%S.%f'))
+            client.send_sample(4, json.dumps({
+                'unit_measure': 'CO(ppm)',
+                'measure': str(measures['co']),
+                'name': 'pollution'
+            }), datetime.fromtimestamp((time.time() * 1000 - int(sample['Timestamp'])) / 1000).strftime(
+                '%Y-%m-%d %H:%M:%S.%f'))
+            client.send_sample(4, json.dumps({
+                'unit_measure': 'SMOKE(ppm)',
+                'measure': str(measures['smoke']),
+                'name': 'pollution'
+            }), datetime.fromtimestamp((time.time() * 1000 - int(sample['Timestamp'])) / 1000).strftime(
+                '%Y-%m-%d %H:%M:%S.%f'))
+        except GraphQLClient.Error:
+            pass
+
+
 def parse_command(serial_port):
     command = ""
     while True:
@@ -192,7 +224,9 @@ def parse_command(serial_port):
         if command.endswith(AtHomeProtocol['end_of_line']):
             command = command[: - len(AtHomeProtocol['end_of_line'])]
             if command in AtHomeCommands:
-                AtHomeCommands[command](serial_port)
+                res = AtHomeCommands[command](serial_port)
+                if command is AtHomeCommands['UploadData']:
+                    sendToAPI(res)
             else:
                 raise NameError("[Unknown command] %s" % command)
 
