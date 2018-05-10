@@ -222,13 +222,14 @@ def parse_command(serial_port):
             raise NameError("Communication Ended")
         command += data
         if command.endswith(AtHomeProtocol['end_of_line']):
-            command = command[: - len(AtHomeProtocol['end_of_line'])]
+            command = command[1:-2]
             if command in AtHomeCommands:
                 res = AtHomeCommands[command](serial_port)
-                if command is AtHomeCommands['UploadData']:
+                if command is 'UploadData':
                     sendToAPI(res)
             else:
                 raise NameError("[Unknown command] %s" % command)
+            command = ""
 
 
 def read_data_from_serial(port=None):
