@@ -173,7 +173,7 @@ def get_serial_ports():
     info_list = QSerialPortInfo()
     serial_list = info_list.availablePorts()
     serial_ports = [open_serial_port(port) for port in ports]
-    serial_ports += [open_serial_port(port) for port in serial_list]
+    serial_ports += [open_serial_port(port.portName()) for port in serial_list]
     return serial_ports
 
 
