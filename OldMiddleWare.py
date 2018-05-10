@@ -225,7 +225,7 @@ def parse_command(serial_port):
             command = command[1:-2]
             if command in AtHomeCommands:
                 res = AtHomeCommands[command](serial_port)
-                if command is 'UploadData':
+                if command == 'UploadData':
                     sendToAPI(res)
             else:
                 raise NameError("[Unknown command] %s" % command)
