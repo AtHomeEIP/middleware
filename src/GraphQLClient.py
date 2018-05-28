@@ -1,6 +1,7 @@
 import requests
 import datetime
 import time
+from json import loads
 
 class GraphQLClient():
     """
@@ -46,4 +47,26 @@ class GraphQLClient():
         if int(response.status_code) != 200:
             raise self.Error("invalid return code from the API: {}".format(response.status_code))
 
+    def new_module(self):
+        json_post_data = '''
+        mutation{
+            newModule(module: {
+                boxId: "1"
+                mac:"00:00:00:00:00"
+                name:"unknown"
+                location:"1"
+                type:"unknown"
+                vendor: "athome"
+                firmware:"1.0.0"})
+            {
+                id
+            }
+        }
+        '''
+        response = requests.post(self.api_url, json={"query": json_post_data})
+        if int(response.status_code) == 200:
+            data = loads(response.content.decode('utf-8', errors='replace'))
+            return int(data['data']['newModule']['id'])
+        else:
+            raise NameError(response.reason)
 

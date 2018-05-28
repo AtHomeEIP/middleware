@@ -43,9 +43,7 @@ AtHomeProtocol = {
     'end_of_communication': '\x04',
     'end_of_line': '\r\n',
     'part_separator': '=' * 80,
-    'Enumerate': 'Enumerate',
     'UploadData': 'UploadData',
-    'SyncTime': 'SyncTime',
     'SetWiFi': 'SetWiFi',
     'SetEndPoint': 'SetEndPont',
     'SetProfile': 'SetProfile',
@@ -54,24 +52,6 @@ AtHomeProtocol = {
     'ip': 'ip',
     'port': 'port'
 }
-
-
-def enumerate_module(mod):
-    first_line = ''
-    while first_line.endswith(AtHomeProtocol['end_of_line']) is False:
-        data = mod.read(1)
-        if data == b'':
-            mod.waitForReadyRead(30000)
-            continue
-        first_line += data.decode('ascii')
-    content = ''
-    while content.endswith(AtHomeProtocol['end_of_line']) is False:
-        data = mod.read(1)
-        if data == b'':
-            mod.waitForReadyRead(30000)
-            continue
-        content += data.decode('ascii')
-    return json.loads(content)
 
 
 def upload_data(mod):
@@ -90,14 +70,6 @@ def upload_data(mod):
             continue
         content += data.decode('ascii')
     return json.loads(content)
-
-
-def sync_time(mod):
-    mod.write(AtHomeProtocol['SyncTime'].encode('ascii'))
-    mod.write(AtHomeProtocol['end_of_line'].encode('ascii'))
-    mod.write(struct.pack('<Q', int(time.mktime(time.localtime()))))
-    mod.write(AtHomeProtocol['end_of_command'].encode('ascii'))
-    return None
 
 
 def set_wifi(mod):
@@ -126,19 +98,16 @@ def set_end_point(mod):
     return None
 
 
-def set_profile(mod):
-    profile = get_default_profile()
+def set_profile(mod, id=0):
     mod.write(AtHomeProtocol['SetProfile'].encode('ascii'))
     mod.write(AtHomeProtocol['end_of_line'].encode('ascii'))
-    mod.write(struct.pack('<33s33sB', profile.vendor, profile.serial, profile.type))
-    mod.write(AtHomeProtocol['end_of_communication'].encode('ascii'))
+    mod.write(struct.pack('<I', id))
+    mod.write(AtHomeProtocol['end_of_command'].encode('ascii'))
     return None
 
 
 AtHomeCommands = {
-    'Enumerate': enumerate_module,
     'UploadData': upload_data,
-    'SyncTime': sync_time,
     'SetWiFi': set_wifi,
     'SetEndPoint': set_end_point,
     'SetProfile': set_profile
@@ -179,34 +148,38 @@ def get_serial_ports():
     return serial_ports
 
 
-def sendToAPI(data):
+def sendToAPI(module, data):
     client = GraphQLClient('http://localhost:8080/graphql')
     # Assumes it's the MQ2, we still can't detect which module it is
     # Currently timestamps are the number of milliseconds since the the arduino started or the counter overflowed,
     # as AVR microcontrolers used by Arduino don't have a RTC
-    for sample in data:
-        try:
-            measures = json.loads(sample['Measure'])
-            client.send_sample(4, json.dumps({
-                'unit_measure': 'LPG(ppm)',
-                'measure': str(measures['lpg']),
-                'name': 'pollution'
-            }), datetime.fromtimestamp((time.time() * 1000 - int(sample['Timestamp'])) / 1000).strftime(
-                '%Y-%m-%d %H:%M:%S.%f'))
-            client.send_sample(4, json.dumps({
-                'unit_measure': 'CO(ppm)',
-                'measure': str(measures['co']),
-                'name': 'pollution'
-            }), datetime.fromtimestamp((time.time() * 1000 - int(sample['Timestamp'])) / 1000).strftime(
-                '%Y-%m-%d %H:%M:%S.%f'))
-            client.send_sample(4, json.dumps({
-                'unit_measure': 'SMOKE(ppm)',
-                'measure': str(measures['smoke']),
-                'name': 'pollution'
-            }), datetime.fromtimestamp((time.time() * 1000 - int(sample['Timestamp'])) / 1000).strftime(
-                '%Y-%m-%d %H:%M:%S.%f'))
-        except GraphQLClient.Error:
-            pass
+    if data['Serial'] == 0:
+        id = client.new_module()
+        print('new id:', id)
+        set_profile(module, id)
+    # for sample in data:
+    #     try:
+    #         measures = json.loads(sample['Measure'])
+    #         client.send_sample(4, json.dumps({
+    #             'unit_measure': 'LPG(ppm)',
+    #             'measure': str(measures['lpg']),
+    #             'name': 'pollution'
+    #         }), datetime.fromtimestamp((time.time() * 1000 - int(sample['Timestamp'])) / 1000).strftime(
+    #             '%Y-%m-%d %H:%M:%S.%f'))
+    #         client.send_sample(4, json.dumps({
+    #             'unit_measure': 'CO(ppm)',
+    #             'measure': str(measures['co']),
+    #             'name': 'pollution'
+    #         }), datetime.fromtimestamp((time.time() * 1000 - int(sample['Timestamp'])) / 1000).strftime(
+    #             '%Y-%m-%d %H:%M:%S.%f'))
+    #         client.send_sample(4, json.dumps({
+    #             'unit_measure': 'SMOKE(ppm)',
+    #             'measure': str(measures['smoke']),
+    #             'name': 'pollution'
+    #         }), datetime.fromtimestamp((time.time() * 1000 - int(sample['Timestamp'])) / 1000).strftime(
+    #             '%Y-%m-%d %H:%M:%S.%f'))
+    #     except GraphQLClient.Error:
+    #         pass
 
 
 def parse_command(serial_port):
@@ -222,11 +195,12 @@ def parse_command(serial_port):
             raise NameError("Communication Ended")
         command += data
         if command.endswith(AtHomeProtocol['end_of_line']):
-            command = command[1:-2]
+            command = command[0:-2]
             if command in AtHomeCommands:
                 res = AtHomeCommands[command](serial_port)
                 if command == 'UploadData':
-                    sendToAPI(res)
+                    print('upload_data:', res)
+                    sendToAPI(serial_port, res)
             else:
                 raise NameError("[Unknown command] %s" % command)
             command = ""
