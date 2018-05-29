@@ -12,7 +12,102 @@ from datetime import datetime
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
 from src.GraphQLClient import GraphQLClient
+from decimal import Decimal
 
+
+units = [
+    'Unknown',
+    'metre',
+    'kilogram',
+    'second',
+    'kelvin',
+    'mole',
+    'candela',
+    'radian',
+    'steradian',
+    'hertz',
+    'newton',
+    'pascal',
+    'joule',
+    'watt',
+    'coulomb',
+    'volt',
+    'farad',
+    'ohm',
+    'siemens',
+    'weber',
+    'tesla',
+    'henry',
+    'degree celsius',
+    'lumen',
+    'lux',
+    'becquerel',
+    'gray',
+    'grevert',
+    'katal',
+    'part per million',
+    'relative humidity',
+    'aggregate'
+]
+
+units_abbreviations = [
+    'Unknown',
+    'm',
+    'kg',
+    's',
+    'A',
+    'K',
+    'mol',
+    'cd',
+    'rad',
+    'strad',
+    'Hz',
+    'N',
+    'Pa',
+    'J',
+    'W',
+    'C',
+    'V',
+    'F',
+    'Ohm',
+    'S',
+    'Weber',
+    'Tesla',
+    'H',
+    '°C',
+    'Lumen',
+    'lux',
+    'Bcq',
+    'Gray',
+    'Sievert',
+    'Katal',
+    'PPM',
+    '%RH'
+]
+
+units_coefficients = [
+    Decimal(1.),
+    Decimal(10.),
+    Decimal(100.),
+    Decimal(1000.),
+    Decimal(1000000.),
+    Decimal(1000000000.),
+    Decimal(1000000000000.),
+    Decimal(1000000000000000.),
+    Decimal(1000000000000000000.),
+    Decimal(1000000000000000000000.),
+    Decimal(1000000000000000000000000.),
+    Decimal(0.1),
+    Decimal(0.01),
+    Decimal(0.001),
+    Decimal(0.000001),
+    Decimal(0.000000001),
+    Decimal(0.000000000001),
+    Decimal(0.000000000000001),
+    Decimal(0.000000000000000001),
+    Decimal(0.000000000000000000001),
+    Decimal(0.000000000000000000000001)
+]
 
 class WiFiParameters:
     def __init__(self):
@@ -22,19 +117,49 @@ class WiFiParameters:
         self.port = 4242
 
 
-class ModuleProfile:
-    def __init__(self):
-        self.vendor = b'AtHome\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'
-        self.serial = b'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'
-        self.type = 0
-
-
 def get_wifi_parameters():
     return WiFiParameters()
 
 
-def get_default_profile():
-    return ModuleProfile()
+def sendToAPI(module, data):
+    client = GraphQLClient('http://localhost:8080/graphql')
+    if data['Serial'] == 0:
+        try:
+            id = client.new_module()
+        except GraphQLClient.Error as e:
+            print('[GraphQLClientError] %s' % e, file=sys.stderr)
+            return
+        print('new id:', id, file=sys.stderr)
+        set_profile(module, id)
+        data['Serial'] = id
+    values = []
+    for sample in data['Data']:
+        if type(sample['Value']) is not dict:
+            measure = Decimal(sample['Value']) * units_coefficients[sample['Prefix']]
+            values.append([{
+                'unit_measure': units_abbreviations[sample['Unit']],
+                'measure': str(measure),
+                'name': 'Idk'
+            }, sample['Timestamp']])
+        else:
+            for key, value in sample['Value'].items():
+                if value is not dict:
+                    measure = Decimal(value) * units_coefficients[sample['Prefix']]
+                    unit_measure = '%s(%s)' % (key, units_abbreviations[sample['Unit']])
+                else:
+                    measure = Decimal(value['Value']) * units_coefficients[value['Prefix']]
+                    unit_measure = '%s(%s)' % (key, units_abbreviations[value['Unit']])
+                values.append([{
+                    'unit_measure': unit_measure,
+                    'measure': str(measure),
+                    'name': 'Idk'
+                }, sample['Timestamp']])
+    for value in values:
+        try:
+            client.send_sample(data['Serial'], json.dumps(value[0]), datetime.fromtimestamp(
+                (time.time() * 1000 + int(value[1])) / 1000).strftime('%Y-%m-%d %H:%M:%S.%f'))
+        except GraphQLClient.Error as e:
+            print('[GraphQLClientError] %s' % e, file=sys.stderr)
 
 
 AtHomeProtocol = {
@@ -69,7 +194,10 @@ def upload_data(mod):
             mod.waitForReadyRead(30000)
             continue
         content += data.decode('ascii')
-    return json.loads(content)
+    module_data = json.loads(content)
+    print('UploadData:', module_data, file=sys.stderr)
+    sendToAPI(mod, module_data)
+    return module_data
 
 
 def set_wifi(mod):
@@ -148,40 +276,6 @@ def get_serial_ports():
     return serial_ports
 
 
-def sendToAPI(module, data):
-    client = GraphQLClient('http://localhost:8080/graphql')
-    # Assumes it's the MQ2, we still can't detect which module it is
-    # Currently timestamps are the number of milliseconds since the the arduino started or the counter overflowed,
-    # as AVR microcontrolers used by Arduino don't have a RTC
-    if data['Serial'] == 0:
-        id = client.new_module()
-        print('new id:', id)
-        set_profile(module, id)
-    # for sample in data:
-    #     try:
-    #         measures = json.loads(sample['Measure'])
-    #         client.send_sample(4, json.dumps({
-    #             'unit_measure': 'LPG(ppm)',
-    #             'measure': str(measures['lpg']),
-    #             'name': 'pollution'
-    #         }), datetime.fromtimestamp((time.time() * 1000 - int(sample['Timestamp'])) / 1000).strftime(
-    #             '%Y-%m-%d %H:%M:%S.%f'))
-    #         client.send_sample(4, json.dumps({
-    #             'unit_measure': 'CO(ppm)',
-    #             'measure': str(measures['co']),
-    #             'name': 'pollution'
-    #         }), datetime.fromtimestamp((time.time() * 1000 - int(sample['Timestamp'])) / 1000).strftime(
-    #             '%Y-%m-%d %H:%M:%S.%f'))
-    #         client.send_sample(4, json.dumps({
-    #             'unit_measure': 'SMOKE(ppm)',
-    #             'measure': str(measures['smoke']),
-    #             'name': 'pollution'
-    #         }), datetime.fromtimestamp((time.time() * 1000 - int(sample['Timestamp'])) / 1000).strftime(
-    #             '%Y-%m-%d %H:%M:%S.%f'))
-    #     except GraphQLClient.Error:
-    #         pass
-
-
 def parse_command(serial_port):
     command = ""
     while True:
@@ -197,10 +291,7 @@ def parse_command(serial_port):
         if command.endswith(AtHomeProtocol['end_of_line']):
             command = command[0:-2]
             if command in AtHomeCommands:
-                res = AtHomeCommands[command](serial_port)
-                if command == 'UploadData':
-                    print('upload_data:', res)
-                    sendToAPI(serial_port, res)
+                AtHomeCommands[command](serial_port)
             else:
                 raise NameError("[Unknown command] %s" % command)
             command = ""
