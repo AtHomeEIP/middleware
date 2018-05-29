@@ -139,20 +139,22 @@ def sendToAPI(module, data):
             values.append([{
                 'unit_measure': units_abbreviations[sample['Unit']],
                 'measure': str(measure),
-                'name': 'Idk'
+                'name': sample['Label']
             }, sample['Timestamp']])
         else:
             for key, value in sample['Value'].items():
                 if value is not dict:
                     measure = Decimal(value) * units_coefficients[sample['Prefix']]
                     unit_measure = '%s(%s)' % (key, units_abbreviations[sample['Unit']])
+                    name = sample['Label']
                 else:
                     measure = Decimal(value['Value']) * units_coefficients[value['Prefix']]
                     unit_measure = '%s(%s)' % (key, units_abbreviations[value['Unit']])
+                    name = value['Label']
                 values.append([{
                     'unit_measure': unit_measure,
                     'measure': str(measure),
-                    'name': 'Idk'
+                    'name': name
                 }, sample['Timestamp']])
     for value in values:
         try:
