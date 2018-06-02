@@ -6,7 +6,7 @@ import glob
 import sys
 import struct
 import json  # loads to decode json, dumps to encode
-import threading
+import dateutil.parser
 from datetime import datetime
 # from AtHome import get_wifi_parameters, get_default_profile
 from PyQt5.QtCore import QCoreApplication
@@ -109,6 +109,7 @@ units_coefficients = [
     Decimal(0.000000000000000000000001)
 ]
 
+
 class WiFiParameters:
     def __init__(self):
         self.ssid = 'AtHome'
@@ -132,6 +133,7 @@ def sendToAPI(module, data):
         print('new id:', id, file=sys.stderr)
         set_profile(module, id)
         data['Serial'] = id
+        set_date_time(module)
     values = []
     for sample in data['Data']:
         if type(sample['Value']) is not dict:
@@ -139,18 +141,18 @@ def sendToAPI(module, data):
             values.append([{
                 'unit_measure': units_abbreviations[sample['Unit']],
                 'measure': str(measure),
-                'name': sample['Label']
+                'name': sample['Label'] if 'label' in sample else 'Unnamed'
             }, sample['Timestamp']])
         else:
             for key, value in sample['Value'].items():
                 if value is not dict:
                     measure = Decimal(value) * units_coefficients[sample['Prefix']]
                     unit_measure = '%s(%s)' % (key, units_abbreviations[sample['Unit']])
-                    name = sample['Label']
+                    name = sample['Label'] if 'label' in sample else 'Unnamed'
                 else:
                     measure = Decimal(value['Value']) * units_coefficients[value['Prefix']]
                     unit_measure = '%s(%s)' % (key, units_abbreviations[value['Unit']])
-                    name = value['Label']
+                    name = value['Label'] if 'label' in sample else 'Unnamed'
                 values.append([{
                     'unit_measure': unit_measure,
                     'measure': str(measure),
@@ -158,8 +160,8 @@ def sendToAPI(module, data):
                 }, sample['Timestamp']])
     for value in values:
         try:
-            client.send_sample(data['Serial'], json.dumps(value[0]), datetime.fromtimestamp(
-                (time.time() * 1000 + int(value[1])) / 1000).strftime('%Y-%m-%d %H:%M:%S.%f'))
+            client.send_sample(data['Serial'], json.dumps(value[0]), dateutil.parser.parse(value[1]).strftime(
+                '%Y-%m-%d %H:%M:%S.%f'))
         except GraphQLClient.Error as e:
             print('[GraphQLClientError] %s' % e, file=sys.stderr)
 
@@ -174,6 +176,7 @@ AtHomeProtocol = {
     'SetWiFi': 'SetWiFi',
     'SetEndPoint': 'SetEndPont',
     'SetProfile': 'SetProfile',
+    'SetDateTime': 'SetDateTime',
     'SSID': 'ssid',
     'Password': 'password',
     'ip': 'ip',
@@ -236,11 +239,21 @@ def set_profile(mod, id=0):
     return None
 
 
+def set_date_time(mod):
+    mod.write(AtHomeProtocol['SetDateTime'].encode('ascii'))
+    mod.write(AtHomeProtocol['end_of_line'].encode('ascii'))
+    now = datetime.now()
+    mod.write(struct.pack('<BBBBBH', now.second, now.minute, now.hour, now.day, now.month, now.year))
+    mod.write(AtHomeProtocol['end_of_command'].encode('ascii'))
+    return None
+
+
 AtHomeCommands = {
     'UploadData': upload_data,
     'SetWiFi': set_wifi,
     'SetEndPoint': set_end_point,
-    'SetProfile': set_profile
+    'SetProfile': set_profile,
+    'SetDateTime': set_date_time,
 }
 
 
