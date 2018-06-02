@@ -261,7 +261,7 @@ def open_serial_port(name):
     try:
         serial_port = QSerialPort()
         serial_port.setPortName(name)
-        serial_port.setBaudRate(QSerialPort.Baud115200, QSerialPort.AllDirections)
+        serial_port.setBaudRate(QSerialPort.Baud9600, QSerialPort.AllDirections)
         serial_port.setParity(QSerialPort.NoParity)
         serial_port.setStopBits(QSerialPort.OneStop)
         serial_port.setDataBits(QSerialPort.Data8)
