@@ -17,6 +17,7 @@ def listen_on_socket(socket, *args):
         try:
             data = file.read(1)
             if data == b'':
+                sleep(0.001)
                 continue
             else:
                 data = data.decode('ascii')

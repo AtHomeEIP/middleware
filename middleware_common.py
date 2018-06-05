@@ -111,7 +111,7 @@ class WiFiParameters:
         self.ssid = 'AtHome'
         self.password = '12345678'
         self.ip = '10.0.0.1'
-        self.port = 4242
+        self.port = 4444
 
 
 def get_wifi_parameters():
@@ -204,12 +204,14 @@ def upload_data(mod):
 def set_wifi(mod):
     wifi_param = get_wifi_parameters()
     wifi = {
-        'ssid': wifi_param.ssid,
-        'password': wifi_param.password
+        'ssid': wifi_param.ssid.encode('ascii'),
+        'password': wifi_param.password.encode('ascii')
     }
     mod.write(AtHomeProtocol['SetWiFi'].encode('ascii'))
     mod.write(AtHomeProtocol['end_of_line'].encode('ascii'))
-    mod.write(json.dumps(wifi).replace(' ', '').encode('ascii'))
+    # mod.write(json.dumps(wifi).replace(' ', '').encode('ascii'))
+    mod.write(struct.pack('<%dsB%dsB' % (len(wifi['ssid']), len(wifi['password'])), wifi['ssid'], 0, wifi['password'],
+                          0))
     mod.write(AtHomeProtocol['end_of_command'].encode('ascii'))
     return None
 
@@ -217,12 +219,14 @@ def set_wifi(mod):
 def set_end_point(mod):
     wifi_param = get_wifi_parameters()
     endpoint = {
-        'ip': wifi_param.ip,
+        'ip': [int(part) for part in wifi_param.ip.split('.')],
         'port': wifi_param.port
     }
     mod.write(AtHomeProtocol['SetEndPoint'].encode('ascii'))
     mod.write(AtHomeProtocol['end_of_line'].encode('ascii'))
-    mod.write(json.dumps(endpoint).replace(' ', '').encode('ascii'))
+    # mod.write(json.dumps(endpoint).replace(' ', '').encode('ascii'))
+    mod.write(struct.pack('<BBBBBH', 4, endpoint['ip'][0], endpoint['ip'][1], endpoint['ip'][2], endpoint['ip'][3],
+                          endpoint['port']))
     mod.write(AtHomeProtocol['end_of_command'].encode('ascii'))
     return None
 
