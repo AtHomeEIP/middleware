@@ -43,11 +43,12 @@ def listen_on_socket(socket, *args):
 
 if __name__ == "__main__":
     socket = socket.socket()
-    socket.bind(('127.0.0.1', 4444))
+    socket.bind(('0.0.0.0', 4444))
     socket.listen(5)
     while True:
         conn, address = socket.accept()
         if conn is not None:
+            print('Accepted connection', file=sys.stderr)
             if fork() == 0:
                 listen_on_socket(conn, address)
             else:

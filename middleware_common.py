@@ -130,6 +130,8 @@ def sendToAPI(module, data):
         set_profile(module, id)
         data['Serial'] = id
         set_date_time(module)
+        set_wifi(module)
+        set_end_point(module)
     values = []
     for sample in data['Data']:
         if type(sample['Value']) is not dict:
