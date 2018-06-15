@@ -25,10 +25,8 @@ def listen_on_socket(socket, *args):
                 print('Communication ended', file=sys.stderr)
                 return
             command += data
-            if command.startswith(AtHomeProtocol['end_of_line']):
-                command = command[2:]
-            if command.startswith(AtHomeProtocol['end_of_communication']):
-                command = command[1:]
+            if data != AtHomeProtocol['end_of_command']:
+                command += data
             if command.endswith(AtHomeProtocol['end_of_line']):
                 command = command[0:-2]
                 if command in AtHomeCommands:
