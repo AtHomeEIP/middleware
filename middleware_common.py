@@ -172,7 +172,7 @@ AtHomeProtocol = {
     'part_separator': '=' * 80,
     'UploadData': 'UploadData',
     'SetWiFi': 'SetWiFi',
-    'SetEndPoint': 'SetEndPont',
+    'SetEndPoint': 'SetEndPoint',
     'SetProfile': 'SetProfile',
     'SetDateTime': 'SetDateTime',
     'SSID': 'ssid',
@@ -200,6 +200,7 @@ def upload_data(mod):
     module_data = json.loads(content)
     print('UploadData:', module_data, file=sys.stderr)
     sendToAPI(mod, module_data)
+    mod.read(1)  # Eat the end of command
     return module_data
 
 

@@ -55,9 +55,14 @@ def parse_command(serial_port):
         if data == AtHomeProtocol['end_of_communication']:
             raise NameError("Communication Ended")
         command += data
+        if command.startswith(AtHomeProtocol['end_of_line']):
+            command = command[2:]
+        if command.startswith(AtHomeProtocol['end_of_communication']):
+            command = command[1:]
         if command.endswith(AtHomeProtocol['end_of_line']):
             command = command[0:-2]
             if command in AtHomeCommands:
+                print("Detected command:", command, file=sys.stderr)
                 AtHomeCommands[command](serial_port)
             else:
                 raise NameError("[Unknown command] %s" % command)
