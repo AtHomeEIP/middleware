@@ -3,9 +3,11 @@
 
 import time
 import glob
+import sys
 # from AtHome import get_wifi_parameters, get_default_profile
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
+from os import fork
 from middleware_common import *
 
 
@@ -51,7 +53,8 @@ def parse_command(serial_port):
         else:
             data = data.decode('ascii')
         if data == AtHomeProtocol['end_of_communication']:
-            raise NameError("Communication Ended")
+            print("[Communication Ended]", file=sys.stderr)
+            sys.exit(0)
         command += data
         if command.endswith(AtHomeProtocol['end_of_line']):
             command = command[0:-2]
@@ -73,14 +76,30 @@ def read_data_from_serial(port=None):
             print(e, file=sys.stderr)
 
 
+def detect_new_modules(current_modules):
+    modules = glob.glob('/dev/athome*')
+    new_modules = []
+    for module in modules:
+        if module not in current_modules:
+            new_modules.append(new_modules)
+    return new_modules
+
+
+def start_module_daemon(module):
+    if fork() == 0:
+        read_data_from_serial(open_serial_port(module))
+
+
 if __name__ == "__main__":
     a = QCoreApplication(sys.argv)
+    serial_res = []
     if len(sys.argv) > 1:
         # serial_res = [open_serial_port(port) for port in sys.argv[1:]]
-        serial_res = sys.argv[1:]
-    else:
-        serial_res = get_serial_ports()
+        serial_res += sys.argv[1:]
+    serial_res += get_serial_ports()
     for port in serial_res:
-        read_data_from_serial(port)
+        start_module_daemon(port)
     while True:
         time.sleep(1)
+        for module in detect_new_modules(serial_res):
+            start_module_daemon(module)
