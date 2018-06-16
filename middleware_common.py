@@ -108,9 +108,9 @@ units_coefficients = [
 
 class WiFiParameters:
     def __init__(self):
-        self.ssid = 'AtHome'
-        self.password = '12345678'
-        self.ip = '10.0.0.1'
+        self.ssid = ''
+        self.password = ''
+        self.ip = '192.168.1.1'
         self.port = 4444
 
 
@@ -130,6 +130,8 @@ def sendToAPI(module, data):
         set_profile(module, id)
         data['Serial'] = id
         set_date_time(module)
+        set_wifi(module)
+        set_end_point(module)
     values = []
     for sample in data['Data']:
         if type(sample['Value']) is not dict:
@@ -170,7 +172,7 @@ AtHomeProtocol = {
     'part_separator': '=' * 80,
     'UploadData': 'UploadData',
     'SetWiFi': 'SetWiFi',
-    'SetEndPoint': 'SetEndPont',
+    'SetEndPoint': 'SetEndPoint',
     'SetProfile': 'SetProfile',
     'SetDateTime': 'SetDateTime',
     'SSID': 'ssid',
@@ -198,6 +200,7 @@ def upload_data(mod):
     module_data = json.loads(content)
     print('UploadData:', module_data, file=sys.stderr)
     sendToAPI(mod, module_data)
+    mod.read(1)  # Eat the end of command
     return module_data
 
 
@@ -225,7 +228,7 @@ def set_end_point(mod):
     mod.write(AtHomeProtocol['SetEndPoint'].encode('ascii'))
     mod.write(AtHomeProtocol['end_of_line'].encode('ascii'))
     # mod.write(json.dumps(endpoint).replace(' ', '').encode('ascii'))
-    mod.write(struct.pack('<BBBBBH', 4, endpoint['ip'][0], endpoint['ip'][1], endpoint['ip'][2], endpoint['ip'][3],
+    mod.write(struct.pack('<BBBBBH', 4, int(endpoint['ip'][0]), int(endpoint['ip'][1]), int(endpoint['ip'][2]), int(endpoint['ip'][3]),
                           endpoint['port']))
     mod.write(AtHomeProtocol['end_of_command'].encode('ascii'))
     return None

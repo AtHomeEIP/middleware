@@ -3,7 +3,6 @@
 
 import time
 import glob
-import sys
 # from AtHome import get_wifi_parameters, get_default_profile
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
@@ -53,14 +52,16 @@ def parse_command(serial_port):
         else:
             data = data.decode('ascii')
         if data == AtHomeProtocol['end_of_communication']:
-            print("[Communication Ended]", file=sys.stderr)
-            sys.exit(0)
-        command += data
+            raise NameError("Communication Ended")
+        if data != AtHomeProtocol['end_of_command']:
+            command += data
         if command.endswith(AtHomeProtocol['end_of_line']):
             command = command[0:-2]
             if command in AtHomeCommands:
+                print("Detected command:", command, file=sys.stderr)
                 AtHomeCommands[command](serial_port)
             else:
+                command = ""
                 raise NameError("[Unknown command] %s" % command)
             command = ""
 
