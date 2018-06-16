@@ -167,13 +167,11 @@ def get_serial_ports():
         La list des ports serial dispo sur le système
     """
     if sys.platform.startswith('linux'):
-        ports = glob.glob('/dev/tyyACM*')
+        serial_ports = glob.glob('/dev/athome*')
     else:
-        ports = []
-    info_list = QSerialPortInfo()
-    serial_list = info_list.availablePorts()
-    serial_ports = [open_serial_port(port) for port in ports]
-    serial_ports += [open_serial_port(port.portName()) for port in serial_list]
+        info_list = QSerialPortInfo()
+        serial_list = info_list.availablePorts()
+        serial_ports = [open_serial_port(port.portName()) for port in serial_list]
     return serial_ports
 
 
@@ -211,12 +209,11 @@ def read_data_from_serial(port=None):
 if __name__ == "__main__":
     a = QCoreApplication(sys.argv)
     if len(sys.argv) > 1:
-        serial_res = [open_serial_port(port) for port in sys.argv[1:]]
+        # serial_res = [open_serial_port(port) for port in sys.argv[1:]]
+        serial_res = sys.argv[1:]
     else:
         serial_res = get_serial_ports()
     for port in serial_res:
-        # thread = threading.Thread(target=read_data_from_serial, kwargs={'port': port})
-        # thread.start()
         read_data_from_serial(port)
     while True:
         time.sleep(1)
