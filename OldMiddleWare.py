@@ -55,6 +55,9 @@ def parse_command(serial_port):
             raise NameError("Communication Ended")
         if data != AtHomeProtocol['end_of_command']:
             command += data
+        else:
+            command = ""
+            continue
         if command.endswith(AtHomeProtocol['end_of_line']):
             command = command[0:-2]
             if command in AtHomeCommands:
@@ -89,6 +92,7 @@ def detect_new_modules(current_modules):
 def start_module_daemon(module):
     if fork() == 0:
         read_data_from_serial(open_serial_port(module))
+        sys.exit(0)
 
 
 if __name__ == "__main__":

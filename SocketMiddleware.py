@@ -27,6 +27,9 @@ def listen_on_socket(socket, *args):
             command += data
             if data != AtHomeProtocol['end_of_command']:
                 command += data
+            else:
+                command = ""
+                continue
             if command.endswith(AtHomeProtocol['end_of_line']):
                 command = command[0:-2]
                 if command in AtHomeCommands:
@@ -38,7 +41,7 @@ def listen_on_socket(socket, *args):
         except EOFError:
             file.close()
             socket.close()
-            sys.exit(0)
+            return
         except Exception as e:
             print('[Exception] %s' % e, file=sys.stderr)
 
@@ -53,6 +56,7 @@ if __name__ == "__main__":
             print('Accepted connection', file=sys.stderr)
             if fork() == 0:
                 listen_on_socket(conn, address)
+                sys.exit(0)
             else:
                 conn.close()
         sleep(0.001)
