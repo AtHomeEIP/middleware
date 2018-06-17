@@ -38,7 +38,7 @@ def get_serial_ports():
     else:
         info_list = QSerialPortInfo()
         serial_list = info_list.availablePorts()
-        serial_ports = [open_serial_port(port.portName()) for port in serial_list]
+        serial_ports = [port.portName() for port in serial_list]
     return serial_ports
 
 
@@ -61,11 +61,10 @@ def parse_command(serial_port):
         if command.endswith(AtHomeProtocol['end_of_line']):
             command = command[0:-2]
             if command in AtHomeCommands:
-                print("Detected command:", command, file=sys.stderr)
+                print("[Detected command]", command, file=sys.stderr)
                 AtHomeCommands[command](serial_port)
             else:
-                command = ""
-                raise NameError("[Unknown command] %s" % command)
+                print("[Unknown command]", command, file=sys.stderr)
             command = ""
 
 
@@ -99,7 +98,6 @@ if __name__ == "__main__":
     a = QCoreApplication(sys.argv)
     serial_res = []
     if len(sys.argv) > 1:
-        # serial_res = [open_serial_port(port) for port in sys.argv[1:]]
         serial_res += sys.argv[1:]
     serial_res += get_serial_ports()
     for port in serial_res:
