@@ -84,7 +84,8 @@ def detect_new_modules(current_modules):
     new_modules = []
     for module in modules:
         if module not in current_modules:
-            new_modules.append(new_modules)
+            new_modules.append(module)
+            time.sleep(5)
     return new_modules
 
 
