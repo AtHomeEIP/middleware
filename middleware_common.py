@@ -46,6 +46,14 @@ units = [
     'aggregate'
 ]
 
+modules_names = {
+    'Air Quality',
+    'Temperature',
+    'Humidity',
+    'Luminosity'
+}
+
+
 units_abbreviations = [
     'Unknown',
     'm',
@@ -122,7 +130,10 @@ def sendToAPI(module, data):
     client = GraphQLClient('http://localhost:8080/graphql')
     if data['Serial'] == 0:
         try:
-            id = client.new_module()
+            for sample in data['Data']:
+                name = sample['Label']
+                Type = name;
+            id = client.new_module(name, Type)
         except GraphQLClient.Error as e:
             print('[GraphQLClientError] %s' % e, file=sys.stderr)
             return

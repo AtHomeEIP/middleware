@@ -11,7 +11,14 @@ class GraphQLClient():
 
     class Error(Exception):
         pass
-
+    
+    modules_types = {
+        'Air Quality',
+        'Temperature',
+        'Humidity',
+        'Luminosity'
+    }
+    
     def __init__(self, api_url):
         self.api_url = api_url
 
