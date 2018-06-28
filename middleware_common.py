@@ -5,11 +5,13 @@ import sys
 import struct
 import json  # loads to decode json, dumps to encode
 import dateutil.parser
+import dateutil.relativedelta
 from datetime import datetime
 # from AtHome import get_wifi_parameters, get_default_profile
 from src.GraphQLClient import GraphQLClient
 from decimal import Decimal
 
+MAX_DELAY_FROM_SAMPLE = 3600 # Seconds
 
 units = [
     'Unknown',
@@ -166,6 +168,13 @@ def sendToAPI(module, data):
                     'name': name
                 }, sample['Timestamp']])
     for value in values:
+
+        valueTimestamp = dateutil.parser.parse(value)
+        timeDelta = (datetime.now() - valueTimestamp).total_seconds()
+        if timeDelta > MAX_DELAY_FROM_SAMPLE:
+            print("Outdated sample discarded")
+            continue
+        
         try:
             client.send_sample(data['Serial'], json.dumps(value[0]), dateutil.parser.parse(value[1]).strftime(
                 '%Y-%m-%d %H:%M:%S.%f'))
