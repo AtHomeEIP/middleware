@@ -130,10 +130,8 @@ def sendToAPI(module, data):
     client = GraphQLClient('http://localhost:8080/graphql')
     if data['Serial'] == 0:
         try:
-            for sample in data['Data']:
-                name = sample['Label']
-                Type = name;
-            id = client.new_module(name, Type)
+            name = data['Data'][0]['Label'];
+            id = client.new_module(name)
         except GraphQLClient.Error as e:
             print('[GraphQLClientError] %s' % e, file=sys.stderr)
             return
