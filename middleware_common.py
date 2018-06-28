@@ -5,11 +5,13 @@ import sys
 import struct
 import json  # loads to decode json, dumps to encode
 import dateutil.parser
+import dateutil.relativedelta
 from datetime import datetime
 # from AtHome import get_wifi_parameters, get_default_profile
 from src.GraphQLClient import GraphQLClient
 from decimal import Decimal
 
+MAX_DELAY_FROM_SAMPLE = 3600 # Seconds
 
 units = [
     'Unknown',
@@ -45,6 +47,14 @@ units = [
     'relative humidity',
     'aggregate'
 ]
+
+modules_names = {
+    'Air Quality',
+    'Temperature',
+    'Humidity',
+    'Luminosity'
+}
+
 
 units_abbreviations = [
     'Unknown',
@@ -122,7 +132,8 @@ def sendToAPI(module, data):
     client = GraphQLClient('http://localhost:8080/graphql')
     if data['Serial'] == 0:
         try:
-            id = client.new_module()
+            name = data['Data'][0]['Label'];
+            id = client.new_module(name)
         except GraphQLClient.Error as e:
             print('[GraphQLClientError] %s' % e, file=sys.stderr)
             return
@@ -139,24 +150,31 @@ def sendToAPI(module, data):
             values.append([{
                 'unit_measure': units_abbreviations[sample['Unit']],
                 'measure': str(measure),
-                'name': sample['Label'] if 'label' in sample else 'Unnamed'
+                'name': sample['Label'] if 'Label' in sample else 'Unnamed'
             }, sample['Timestamp']])
         else:
             for key, value in sample['Value'].items():
                 if value is not dict:
                     measure = Decimal(value) * units_coefficients[sample['Prefix']]
                     unit_measure = '%s(%s)' % (key, units_abbreviations[sample['Unit']])
-                    name = sample['Label'] if 'label' in sample else 'Unnamed'
+                    name = sample['Label'] if 'Label' in sample else 'Unnamed'
                 else:
                     measure = Decimal(value['Value']) * units_coefficients[value['Prefix']]
                     unit_measure = '%s(%s)' % (key, units_abbreviations[value['Unit']])
-                    name = value['Label'] if 'label' in sample else 'Unnamed'
+                    name = value['Label'] if 'Label' in sample else 'Unnamed'
                 values.append([{
                     'unit_measure': unit_measure,
                     'measure': str(measure),
                     'name': name
                 }, sample['Timestamp']])
     for value in values:
+
+        valueTimestamp = dateutil.parser.parse(value[1])
+        timeDelta = (datetime.now() - valueTimestamp).total_seconds()
+        if timeDelta > MAX_DELAY_FROM_SAMPLE:
+            print("Outdated sample discarded")
+            continue
+        
         try:
             client.send_sample(data['Serial'], json.dumps(value[0]), dateutil.parser.parse(value[1]).strftime(
                 '%Y-%m-%d %H:%M:%S.%f'))
