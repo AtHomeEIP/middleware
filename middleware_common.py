@@ -169,7 +169,7 @@ def sendToAPI(module, data):
                 }, sample['Timestamp']])
     for value in values:
 
-        valueTimestamp = dateutil.parser.parse(value)
+        valueTimestamp = dateutil.parser.parse(value[1])
         timeDelta = (datetime.now() - valueTimestamp).total_seconds()
         if timeDelta > MAX_DELAY_FROM_SAMPLE:
             print("Outdated sample discarded")
