@@ -48,11 +48,13 @@ units = [
     'aggregate'
 ]
 
+
 modules_names = {
-    'Air Quality',
-    'Temperature',
-    'Humidity',
-    'Luminosity'
+    'atmospherics': ['Air Quality', 'air quality', 'athmospherics', 'Atmospherics'],
+    'thermometer': ['Temperature', 'temperature', 'Thermometer'],
+    'hygrometer': ['Humidity', 'humidity', 'Hygrometer'],
+    'luxmeter': ['Luminosity', 'luminosity', 'Luxmeter'],
+    'soundmeter': ['noise', 'Noise', 'Sound', 'sound']
 }
 
 
@@ -128,12 +130,21 @@ def get_wifi_parameters():
     return WiFiParameters()
 
 
+def get_common_name(label):
+    for name, synonyms in modules_names.items():
+        if label in synonyms:
+            return name
+    return None
+
+
 def sendToAPI(module, data):
     client = GraphQLClient('http://localhost:8080/graphql')
     if data['Serial'] == 0:
         try:
             name = data['Data'][0]['Label'];
-            id = client.new_module(name)
+            common_name = get_common_name(name)
+            module_type = common_name if not None else "Unknown"
+            id = client.new_module(name, module_type)
         except GraphQLClient.Error as e:
             print('[GraphQLClientError] %s' % e, file=sys.stderr)
             return
