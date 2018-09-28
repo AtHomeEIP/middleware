@@ -120,9 +120,9 @@ units_coefficients = [
 
 class WiFiParameters:
     def __init__(self):
-        self.ssid = ''
-        self.password = ''
-        self.ip = '192.168.1.1'
+        self.ssid = 'AtHome'
+        self.password = 'AtHomeRennes8'
+        self.ip = '192.168.4.1'
         self.port = 4444
 
 

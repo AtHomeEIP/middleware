@@ -22,7 +22,7 @@ def open_serial_port(name):
         serial_port.open(QSerialPort.ReadWrite)
         return serial_port
     except Exception as e:
-        print(e)
+        print("open_serial_port", e)
         return None
 
 
@@ -33,12 +33,12 @@ def get_serial_ports():
     :return:
         La list des ports serial dispo sur le système
     """
-    if sys.platform.startswith('linux'):
-        serial_ports = glob.glob('/dev/athome*')
-    else:
-        info_list = QSerialPortInfo()
-        serial_list = info_list.availablePorts()
-        serial_ports = [port.portName() for port in serial_list]
+    # if sys.platform.startswith('linux'):
+    #     serial_ports = glob.glob('/dev/athome*')
+    # else:
+    info_list = QSerialPortInfo()
+    serial_list = info_list.availablePorts()
+    serial_ports = [port.portName() for port in serial_list]
     return serial_ports
 
 
@@ -76,23 +76,25 @@ def read_data_from_serial(port=None):
             port.waitForReadyRead(30000)
             parse_command(port)
         except Exception as e:
-            print(e, file=sys.stderr)
+            print("read_data_from_serial", e, file=sys.stderr)
+            if port.isOpen() is False:
+                return
 
 
 def detect_new_modules(current_modules):
-    modules = glob.glob('/dev/athome*')
+    # modules = glob.glob('/dev/athome*')
+    modules= get_serial_ports()
     new_modules = []
     for module in modules:
         if module not in current_modules:
             new_modules.append(module)
-            time.sleep(5)
     return new_modules
 
 
 def start_module_daemon(module):
     if fork() == 0:
         read_data_from_serial(open_serial_port(module))
-    sys.exit(0)
+        sys.exit(0)
 
 
 if __name__ == "__main__":
@@ -105,5 +107,7 @@ if __name__ == "__main__":
         start_module_daemon(port)
     while True:
         time.sleep(1)
-        for module in detect_new_modules(serial_res):
+        new_modules = detect_new_modules(serial_res)
+        for module in new_modules:
             start_module_daemon(module)
+            serial_res.append(module)
