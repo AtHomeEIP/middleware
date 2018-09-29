@@ -78,3 +78,41 @@ class GraphQLClient():
         else:
             raise NameError(response.reason)
 
+    def new_thresholds(self, module_id, thresholds):
+        thresholds.update({'id': module_id})
+        json_post_data_1 = '''
+        mutation {
+            newThresholds(thresholds: {
+                moduleId: %(id)s,
+                name: "%(name)s_min",
+                default: %(default_min)s,
+                min: %(min)s,
+                max: %(max)s,
+                current: %(current_min)s,
+            }) {
+                name
+            }
+        }
+        ''' % thresholds
+        json_post_data_2 = '''
+        mutation {
+            newThresholds(thresholds: {
+                moduleId: %(id)s,
+                name: "%(name)s_max",
+                default: %(default_max)s,
+                min: %(min)s,
+                max: %(max)s,
+                current: %(current_max)s,
+            }) {
+                name
+            }
+        }
+        ''' % thresholds
+        response = requests.post(self.api_url, json={"query": json_post_data_1})
+        if int(response.status_code) != 200:
+            raise self.Error("invalid return code from the API: {}".format(
+                response.status_code))
+        response = requests.post(self.api_url, json={"query": json_post_data_2})
+        if int(response.status_code) != 200:
+            raise self.Error("invalid return code from the API: {}".format(
+                response.status_code))

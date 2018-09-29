@@ -58,6 +58,55 @@ modules_names = {
 }
 
 
+modules_thresholds = {
+    'atmospherics': {
+        'name': 'Par defaut',
+        'default_min': 10,
+        'current_min': 10,
+        'min': 10,
+        'default_max': 500,
+        'current_max': 500,
+        'max': 500,
+    },
+    'thermometer': {
+        'name': 'Par defaut',
+        'default_min': 17,
+        'current_min': 17,
+        'min': 10,
+        'default_max': 30,
+        'current_max': 30,
+        'max': 30,
+    },
+    'hygrometer': {
+        'name': 'Par defaut',
+        'default_min': 50,
+        'current_min': 50,
+        'min': 35,
+        'default_max': 80,
+        'current_max': 80,
+        'max': 80,
+    },
+    'luxmeter': {
+        'name': 'Par defaut',
+        'default_min': 800,
+        'current_min': 800,
+        'min': 200,
+        'default_max': 3000,
+        'current_max': 3000,
+        'max': 3000,
+    },
+    'soundmeter': {
+        'name': 'Par defaut',
+        'default_min': 35,
+        'current_min': 35,
+        'min': 0,
+        'default_max': 55,
+        'current_max': 55,
+        'max': 80,
+    }
+}
+
+
 units_abbreviations = [
     'Unknown',
     'm',
@@ -145,6 +194,7 @@ def sendToAPI(module, data):
             common_name = get_common_name(name)
             module_type = common_name if not None else "Unknown"
             id = client.new_module(name, module_type)
+            client.new_thresholds(id, modules_thresholds[module_type])
         except GraphQLClient.Error as e:
             print('[GraphQLClientError] %s' % e, file=sys.stderr)
             return
