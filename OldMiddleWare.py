@@ -59,7 +59,7 @@ def parse_command(serial_port):
             command = ""
             continue
         if command.endswith(AtHomeProtocol['end_of_line']):
-            command = command[0:-2]
+            command = command[0:-len(AtHomeProtocol['end_of_line'])].upper()
             if command in AtHomeCommands:
                 print("[Detected command]", command, file=sys.stderr)
                 AtHomeCommands[command](serial_port)
@@ -92,9 +92,9 @@ def detect_new_modules(current_modules):
 
 
 def start_module_daemon(module):
-    if fork() == 0:
-        read_data_from_serial(open_serial_port(module))
-        sys.exit(0)
+    # if fork() == 0:
+    read_data_from_serial(open_serial_port(module))
+    sys.exit(0)
 
 
 if __name__ == "__main__":
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     serial_res = []
     if len(sys.argv) > 1:
         serial_res += sys.argv[1:]
-    serial_res += get_serial_ports()
+    # serial_res += get_serial_ports()
     for port in serial_res:
         start_module_daemon(port)
     while True:
