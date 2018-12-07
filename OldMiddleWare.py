@@ -47,7 +47,7 @@ def parse_command(serial_port):
     while True:
         data = serial_port.read(1)
         if data == b'':
-            serial_port.waitForReadyRead(30000)
+            serial_port.waitForReadyRead(1000)
             continue
         else:
             data = data.decode('ascii')
@@ -73,7 +73,6 @@ def read_data_from_serial(port=None):
         return
     while True:
         try:
-            port.waitForReadyRead(30000)
             parse_command(port)
         except Exception as e:
             print("read_data_from_serial", e, file=sys.stderr)

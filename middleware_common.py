@@ -180,7 +180,7 @@ def athome_update_crc(crc, a):
 def athome_crc(data):
     if type(data) is not bytes:
         raise NameError("Not bytes serialized data")
-    crc = 0
+    crc = 0xFF
     for byte in data:
         crc = athome_update_crc(crc, byte)
     return crc
@@ -248,13 +248,11 @@ def sendToAPI(module, data):
                     'name': name
                 }, sample['Timestamp']])
     for value in values:
-
         valueTimestamp = dateutil.parser.parse(value[1])
         timeDelta = (datetime.now() - valueTimestamp).total_seconds()
         if timeDelta > MAX_DELAY_FROM_SAMPLE:
             print("Outdated sample discarded")
             continue
-        
         try:
             client.send_sample(data['Serial'], json.dumps(value[0]), dateutil.parser.parse(value[1]).strftime(
                 '%Y-%m-%d %H:%M:%S.%f'))
@@ -268,11 +266,11 @@ AtHomeProtocol = {
     'end_of_communication': '\x04',
     'end_of_line': '\n',
     'part_separator': '=' * 80,
-    'UploadData': 'UploadData',
-    'SetWiFi': 'SetWiFi',
-    'SetEndPoint': 'SetEndPoint',
-    'SetProfile': 'SetProfile',
-    'SetDateTime': 'SetDateTime',
+    'UploadData': 'UPLOAD_DATA',
+    'SetWiFi': 'SET_WIFI',
+    'SetEndPoint': 'SET_END_POINT',
+    'SetProfile': 'SET_PROFILE',
+    'SetDateTime': 'SET_DATE_TIME',
     'SSID': 'ssid',
     'Password': 'password',
     'ip': 'ip',
@@ -287,7 +285,7 @@ def parse_varuint(mod):
     while parsing is True:
         data = mod.read(1)
         if data == b'':
-            mod.waitForReadyRead(30000)
+            mod.waitForReadyRead(1000)
             continue
         data = data[0]
         parsing = True if data & 0x80 else False
@@ -303,7 +301,7 @@ def parse_string(mod):
     while parsing is True:
         data = mod.read(1)
         if data == b'':
-            mod.waitForReadyRead(30000)
+            mod.waitForReadyRead(1000)
             continue
         elif data == b'\0':
             parsing = False
@@ -313,8 +311,12 @@ def parse_string(mod):
 
 
 def parse_byte(mod):
-    mod.waitForReadyRead(30000)
-    return mod.read(1)[0]
+    b = mod.read(1)
+    if b == b'':
+        mod.waitForReadyRead(1000)
+        return parse_byte(mod)
+    else:
+        return b[0]
 
 
 def parse_date_time(mod):
@@ -339,32 +341,35 @@ def upload_data(mod):
     year = parse_varuint(mod)
     nb_measures = parse_varuint(mod)
     data = []
-    print(serial, year, nb_measures)
+    prev_data = {}
     for i in range(nb_measures):
-        label = parse_string(mod)
-        unit = parse_byte(mod)
-        prefix = parse_byte(mod)
-        estimate = parse_byte(mod)
-        sample = parse_string(mod)
-        timestamp = parse_date_time(mod)
-        print(label, unit, prefix, estimate, sample, timestamp)
+        fields = parse_varuint(mod)
+        label = prev_data['Label'] if not fields & 0x1 else parse_string(mod)
+        unit = prev_data['Unit'] if not fields & 0x2 else parse_byte(mod)
+        prefix = prev_data['Prefix'] if not fields & 0x4 else parse_byte(mod)
+        estimate = prev_data['Estimate'] if not fields & 0x8 else parse_byte(mod)
+        sample = prev_data['Value'] if not fields & 0x10 else parse_string(mod)
+        timestamp = prev_data['Timestamp'] if not fields & 0x20 else parse_date_time(mod)
+        timestamp['year'] += year if fields & 0x20 else 0
+        decoded_sample = None
+        try:
+            decoded_sample = json.loads(sample) if fields & 0x10 else prev_data['Value']
+        except json.JSONDecodeError:
+            decoded_sample = sample
+        prev_data = {
+            'Value': decoded_sample,
+            'Label': label,
+            'Unit': unit,
+            'Prefix': prefix,
+            'Estimate': estimate,
+            'Timestamp': timestamp
+        }
+        data.append(prev_data)
     parse_byte(mod)
-    sendToAPI({
+    sendToAPI(mod, {
         'Serial': serial,
         'Data': data
     })
-    # content = ''
-    # while content.endswith(AtHomeProtocol['end_of_line']) is False:
-    #     data = mod.read(1)
-    #     if data == b'':
-    #         mod.waitForReadyRead(30000)
-    #         continue
-    #     content += data.decode('ascii')
-    # module_data = json.loads(content)
-    # print('UploadData:', module_data, file=sys.stderr)
-    # sendToAPI(mod, module_data)
-    # mod.read(1)  # Eat the end of command
-    # return module_data
     return None
 
 
@@ -377,14 +382,14 @@ def set_wifi(mod):
     mod.write(AtHomeProtocol['SetWiFi'].encode('ascii'))
     mod.write(AtHomeProtocol['end_of_line'].encode('ascii'))
     # mod.write(json.dumps(wifi).replace(' ', '').encode('ascii'))
-    ssid = struct.pack('<sB', wifi['ssid'], 0)
-    password = struct.pack('<sB', wifi['password'], 0)
-    crc_ssid = athome_crc(struct.pack('<s', wifi['ssid']))
-    crc_password = athome_crc(struct.pack('<s', wifi['password']))
+    ssid = wifi['ssid'].encode('ascii')
+    password = wifi['password'].encode('ascii')
+    crc_ssid = athome_crc(ssid)
+    crc_password = athome_crc(password)
     mod.write(struct.pack('<H', crc_ssid))
-    mod.write(ssid)
+    mod.write(ssid + bytes([0]))
     mod.write(struct.pack('<H', crc_password))
-    mod.write(password)
+    mod.write(password + bytes([0]))
     mod.write(AtHomeProtocol['end_of_command'].encode('ascii'))
     return None
 
@@ -416,14 +421,14 @@ def set_profile(mod, new_id=0, password='default', encryption_key=b'000000000000
     mod.write(AtHomeProtocol['end_of_line'].encode('ascii'))
     b_id = struct.pack('<I', new_id)
     crc_id = athome_crc(b_id)
-    b_password = struct.pack('<sB', password, 0)
+    b_password = password.encode('ascii')
     crc_password = athome_crc(b_password)
-    crc_encryption_key = athome_crc(encryption_key)
-    crc_encryption_iv = athome_crc(encryption_iv)
     mod.write(struct.pack('<H', crc_id))
     mod.write(b_id)
-    mod.write(crc_password)
-    mod.write(b_password)
+    mod.write(struct.pack('<H', crc_password))
+    mod.write(b_password + bytes([0]))
+    crc_encryption_key = athome_crc(encryption_key)
+    crc_encryption_iv = athome_crc(encryption_iv)
     mod.write(crc_encryption_key)
     mod.write(encryption_key)
     mod.write(crc_encryption_iv)
@@ -433,11 +438,11 @@ def set_profile(mod, new_id=0, password='default', encryption_key=b'000000000000
 
 
 def set_date_time(mod):
-    mod.write(AtHomeProtocol['SetDateTime'].encode('ascii'))
-    mod.write(AtHomeProtocol['end_of_line'].encode('ascii'))
     now = datetime.now()
     date = struct.pack('<BBBBBH', now.second, now.minute, now.hour, now.day, now.month, now.year)
     crc_date = struct.pack('<H', athome_crc(date))
+    mod.write(AtHomeProtocol['SetDateTime'].encode('ascii'))
+    mod.write(AtHomeProtocol['end_of_line'].encode('ascii'))
     mod.write(crc_date)
     mod.write(date)
     mod.write(AtHomeProtocol['end_of_command'].encode('ascii'))
