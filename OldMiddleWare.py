@@ -6,7 +6,7 @@ import glob
 # from AtHome import get_wifi_parameters, get_default_profile
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
-from os import fork
+# from os import fork
 from middleware_common import *
 
 

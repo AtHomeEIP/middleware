@@ -366,6 +366,7 @@ def upload_data(mod):
         }
         data.append(prev_data)
     parse_byte(mod)
+    print(data)
     sendToAPI(mod, {
         'Serial': serial,
         'Data': data
@@ -382,8 +383,8 @@ def set_wifi(mod):
     mod.write(AtHomeProtocol['SetWiFi'].encode('ascii'))
     mod.write(AtHomeProtocol['end_of_line'].encode('ascii'))
     # mod.write(json.dumps(wifi).replace(' ', '').encode('ascii'))
-    ssid = wifi['ssid'].encode('ascii')
-    password = wifi['password'].encode('ascii')
+    ssid = wifi['ssid']
+    password = wifi['password']
     crc_ssid = athome_crc(ssid)
     crc_password = athome_crc(password)
     mod.write(struct.pack('<H', crc_ssid))
@@ -429,9 +430,9 @@ def set_profile(mod, new_id=0, password='default', encryption_key=b'000000000000
     mod.write(b_password + bytes([0]))
     crc_encryption_key = athome_crc(encryption_key)
     crc_encryption_iv = athome_crc(encryption_iv)
-    mod.write(crc_encryption_key)
+    mod.write(struct.pack('<H', crc_encryption_key))
     mod.write(encryption_key)
-    mod.write(crc_encryption_iv)
+    mod.write(struct.pack('<H', crc_encryption_iv))
     mod.write(encryption_iv)
     mod.write(AtHomeProtocol['end_of_command'].encode('ascii'))
     return None
