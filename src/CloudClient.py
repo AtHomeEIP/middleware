@@ -55,6 +55,30 @@ class CloudClient():
         if int(response.status_code) != 200:
             raise self.Error("invalid return code from the API: {}".format(response.status_code))
 
+    def module_exists(self, serial):
+        import hashlib
+        serialHash = hashlib.md5(str(serial).encode('utf-8')).hexdigest()
+
+        macAddress = ':'.join(format(s, '02x') for s in bytes.fromhex(serialHash))[:17]
+        json_post_data = '''
+        query{
+            getModuleByMac(macAddress:"%s"){
+                id
+            }
+        }        
+        '''
+        json_post_data %= (macAddress)
+        response = requests.post(self.api_url, json={"query": json_post_data})
+        if int(response.status_code) == 200:
+            data = loads(response.content.decode('utf-8', errors='replace'))
+            try:
+                return data['data']['getModuleByMac']['id']
+            except Exception as err:
+                raise NameError("module not found (macAddress: %s)" % (macAddress,))
+        else:
+            raise NameError(response.reason)
+
+
     def new_module(self, Name="Unknown", Type="Unknown"):
         json_post_data = '''
         mutation{
@@ -99,3 +123,8 @@ class CloudClient():
             return loads(response.content.decode('utf-8', errors='replace'))
         else:
             raise NameError(response.reason)
+
+if __name__ == '__main__':
+    client = CloudClient(api_url='https://woodbox.io:1234/graphql')
+    client.module_exists(1111)
+    1==1
