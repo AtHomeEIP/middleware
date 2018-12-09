@@ -20,10 +20,15 @@ if __name__ == "__main__":
     serial_port.open(QSerialPort.ReadWrite)
     time.sleep(3)
     set_profile(serial_port, 1)
-    set_date_time(serial_port)
+    # set_date_time(serial_port)
     set_wifi(serial_port)
     set_end_point(serial_port)
     time.sleep(3)
     while True:
-        parse_command(serial_port)
+        try:
+            buffer = serial_port.read(100)
+            if len(buffer) > 0:
+                print(buffer, end='')
+        except Exception as e:
+            print(e)
     
