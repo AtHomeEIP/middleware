@@ -185,9 +185,12 @@ def get_common_name(label):
             return name
     return None
 
+from src.CloudClient import CloudClient
 
 def sendToAPI(module, data):
     client = GraphQLClient('http://localhost:8080/graphql')
+    cloudClient = CloudClient(api_url='https://woodbox.io/graphql')
+
     if data['Serial'] == 0:
         try:
             name = data['Data'][0]['Label'];
@@ -231,14 +234,19 @@ def sendToAPI(module, data):
     for value in values:
 
         valueTimestamp = dateutil.parser.parse(value[1])
-        timeDelta = (datetime.now() - valueTimestamp).total_seconds()
-        if timeDelta > MAX_DELAY_FROM_SAMPLE:
-            print("Outdated sample discarded")
-            continue
+        # changed for delivery - arduino set to beginning of year
+        # timeDelta = (datetime.now() - valueTimestamp).total_seconds()
+        # if timeDelta > MAX_DELAY_FROM_SAMPLE:
+        #     print("Outdated sample discarded")
+        #     continue
+
+        # same # nowTimeStamp = dateutil.parser.parse(value[1])
+        nowTimeStamp = datetime.now()
         
         try:
-            client.send_sample(data['Serial'], json.dumps(value[0]), dateutil.parser.parse(value[1]).strftime(
+            client.send_sample(data['Serial'], json.dumps(value[0]), nowTimeStamp.strftime(
                 '%Y-%m-%d %H:%M:%S.%f'))
+            # cloudClient.send_sample()
         except GraphQLClient.Error as e:
             print('[GraphQLClientError] %s' % e, file=sys.stderr)
 
