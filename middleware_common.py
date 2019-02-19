@@ -187,11 +187,14 @@ def get_common_name(label):
 
 from src.CloudClient import CloudClient
 
+insertingModuleInDb = False
+
 def sendToAPI(module, data):
     client = GraphQLClient('http://localhost:8080/graphql')
     cloudClient = CloudClient(api_url='https://woodbox.io/graphql')
 
-    if data['Serial'] == 0:
+    if data['Serial'] == 0 and insertingModuleInDb is False:
+        global insertingModuleInDb = True
         try:
             name = data['Data'][0]['Label'];
             common_name = get_common_name(name)
@@ -207,6 +210,8 @@ def sendToAPI(module, data):
         set_date_time(module)
         set_wifi(module)
         set_end_point(module)
+    else if data['Serial'] != 0:
+        global insertingModuleInDb = False
     values = []
     for sample in data['Data']:
         if type(sample['Value']) is not dict:
