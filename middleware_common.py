@@ -6,6 +6,7 @@ import struct
 import json  # loads to decode json, dumps to encode
 import dateutil.parser
 import dateutil.relativedelta
+import paho.mqtt.publish as publish
 from datetime import datetime
 # from AtHome import get_wifi_parameters, get_default_profile
 from src.GraphQLClient import GraphQLClient
@@ -226,21 +227,21 @@ def sendToAPI(module, data):
     values = []
     for sample in data['Data']:
         if type(sample['Value']) is not dict:
-            measure = Decimal(sample['Value']) * units_coefficients[sample['Prefix']]
+            measure = Decimal(sample['Value']) * units_coefficients[int(sample['Prefix'].hex(), 16)]
             values.append([{
-                'unit_measure': units_abbreviations[sample['Unit']],
+                'unit_measure': units_abbreviations[int(sample['Unit'].hex(), 16)],
                 'measure': str(measure),
                 'name': sample['Label'] if 'Label' in sample else 'Unnamed'
             }, sample['Timestamp']])
         else:
             for key, value in sample['Value'].items():
                 if value is not dict:
-                    measure = Decimal(value) * units_coefficients[sample['Prefix']]
-                    unit_measure = '%s(%s)' % (key, units_abbreviations[sample['Unit']])
+                    measure = Decimal(value) * units_coefficients[int(sample['Prefix'].hex(), 16)]
+                    unit_measure = '%s(%s)' % (key, units_abbreviations[int(sample['Unit'].hex(), 16)])
                     name = sample['Label'] if 'Label' in sample else 'Unnamed'
                 else:
-                    measure = Decimal(value['Value']) * units_coefficients[value['Prefix']]
-                    unit_measure = '%s(%s)' % (key, units_abbreviations[value['Unit']])
+                    measure = Decimal(value['Value']) * units_coefficients[int(value['Prefix'].hex(), 16)]
+                    unit_measure = '%s(%s)' % (key, units_abbreviations[int(value['Unit'].hex(), 16)])
                     name = value['Label'] if 'Label' in sample else 'Unnamed'
                 values.append([{
                     'unit_measure': unit_measure,
@@ -248,14 +249,15 @@ def sendToAPI(module, data):
                     'name': name
                 }, sample['Timestamp']])
     for value in values:
-        valueTimestamp = dateutil.parser.parse(value[1])
-        timeDelta = (datetime.now() - valueTimestamp).total_seconds()
-        if timeDelta > MAX_DELAY_FROM_SAMPLE:
-            print("Outdated sample discarded")
-            continue
+        # valueTimestamp = dateutil.parser.parse(value[1])
+        # timeDelta = (datetime.now() - valueTimestamp).total_seconds()
+        # if timeDelta > MAX_DELAY_FROM_SAMPLE:
+        #     print("Outdated sample discarded")
+        #     continue
         try:
-            client.send_sample(data['Serial'], json.dumps(value[0]), dateutil.parser.parse(value[1]).strftime(
-                '%Y-%m-%d %H:%M:%S.%f'))
+            # client.send_sample(data['Serial'], json.dumps(value[0]), dateutil.parser.parse(value[1]).strftime(
+            #     '%Y-%m-%d %H:%M:%S.%f'))
+            publish.single("athome", json.dumps(value, ensure_ascii=False).encode('utf-8'), qos=2)
         except GraphQLClient.Error as e:
             print('[GraphQLClientError] %s' % e, file=sys.stderr)
 
@@ -316,23 +318,18 @@ def parse_byte(mod):
         mod.waitForReadyRead(1000)
         return parse_byte(mod)
     else:
-        return b[0]
+        return b
 
 
 def parse_date_time(mod):
-    tmp = [parse_byte(mod) for i in range(4)]
-    bin_date = 0
-    for byte in tmp:
-        bin_date = bin_date << 8
-        bin_date = bin_date | byte
+    tmp = [parse_byte(mod) for i in range(6)]
     return {
-        'second': (bin_date >> 26) & 0x3F,
-        'minute': (bin_date >> 20) & 0x3F,
-        'hour': (bin_date >> 15) & 0x1F,
-        'day': (bin_date >> 10) & 0x1F,
-        'month': (bin_date >> 6) & 0xF,
-        'year': bin_date & 0x3F,
-        'raw': hex(bin_date)
+        'second': int(tmp[0].hex(), 16),
+        'minute': int(tmp[1].hex(), 16),
+        'hour': int(tmp[2].hex(), 16),
+        'day': int(tmp[3].hex(), 16),
+        'month': int(tmp[4].hex(), 16),
+        'year': int(tmp[5].hex(), 16),
     }
 
 
