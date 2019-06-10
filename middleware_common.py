@@ -7,6 +7,8 @@ import json  # loads to decode json, dumps to encode
 import dateutil.parser
 import dateutil.relativedelta
 import paho.mqtt.publish as publish
+import netifaces
+import os
 from datetime import datetime
 # from AtHome import get_wifi_parameters, get_default_profile
 from src.GraphQLClient import GraphQLClient
@@ -189,10 +191,10 @@ def athome_crc(data):
 
 class WiFiParameters:
     def __init__(self):
-        self.ssid = 'GuillaumeAP'
-        self.password = 'pctq6488'
-        self.ip = '192.168.43.108'
-        self.port = 4444
+        self.ssid = os.environ.get('ATHOME_WIFI_SSID', 'ATHOME')
+        self.password = os.environ.get('ATHOME_WIFI_PASSWORD', 'ATHOME_DEFAULT')
+        self.ip = os.environ.get('ATHOME_IP', netifaces.ifaddresses('eth0')[netifaces.AF_INET][0]['addr'])
+        self.port = int(os.environ.get('ATHOME_PORT', 4444))
 
 
 def get_wifi_parameters():
@@ -255,8 +257,8 @@ def sendToAPI(module, data):
         #     print("Outdated sample discarded")
         #     continue
         try:
-            # client.send_sample(data['Serial'], json.dumps(value[0]), dateutil.parser.parse(value[1]).strftime(
-            #     '%Y-%m-%d %H:%M:%S.%f'))
+            client.send_sample(data['Serial'], json.dumps(value[0]), dateutil.parser.parse(value[1]).strftime(
+                '%Y-%m-%d %H:%M:%S.%f'))
             publish.single("athome", json.dumps(value, ensure_ascii=False).encode('utf-8'), qos=2)
         except GraphQLClient.Error as e:
             print('[GraphQLClientError] %s' % e, file=sys.stderr)

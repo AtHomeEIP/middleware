@@ -2,3 +2,5 @@ requests
 PyQt5
 sphinx
 python-dateutil
+paho-mqtt
+netifaces

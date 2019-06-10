@@ -6,7 +6,7 @@ import glob
 # from AtHome import get_wifi_parameters, get_default_profile
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
-# from os import fork
+from os import fork
 from middleware_common import *
 
 
@@ -91,9 +91,9 @@ def detect_new_modules(current_modules):
 
 
 def start_module_daemon(module):
-    # if fork() == 0:
-    read_data_from_serial(open_serial_port(module))
-    sys.exit(0)
+    if fork() == 0:
+        read_data_from_serial(open_serial_port(module))
+        sys.exit(0)
 
 
 if __name__ == "__main__":
@@ -101,9 +101,10 @@ if __name__ == "__main__":
     serial_res = []
     if len(sys.argv) > 1:
         serial_res += sys.argv[1:]
-    # serial_res += get_serial_ports()
+    serial_res += get_serial_ports()
     for port in serial_res:
         start_module_daemon(port)
+    sys.exit(0)
     while True:
         time.sleep(1)
         new_modules = detect_new_modules(serial_res)
