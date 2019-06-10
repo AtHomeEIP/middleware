@@ -207,10 +207,16 @@ def get_common_name(label):
             return name
     return None
 
+from src.CloudClient import CloudClient
+
+insertingModuleInDb = False
 
 def sendToAPI(module, data):
     client = GraphQLClient('http://localhost:8080/graphql')
-    if data['Serial'] == 0:
+    cloudClient = CloudClient(api_url='https://woodbox.io/graphql')
+
+    if data['Serial'] == 0 and insertingModuleInDb is False:
+        global insertingModuleInDb = True
         try:
             name = data['Data'][0]['Label']
             common_name = get_common_name(name)
@@ -226,6 +232,8 @@ def sendToAPI(module, data):
         set_date_time(module)
         set_wifi(module)
         set_end_point(module)
+    else if data['Serial'] != 0:
+        global insertingModuleInDb = False
     values = []
     for sample in data['Data']:
         if type(sample['Value']) is not dict:
@@ -256,10 +264,15 @@ def sendToAPI(module, data):
         # if timeDelta > MAX_DELAY_FROM_SAMPLE:
         #     print("Outdated sample discarded")
         #     continue
+
+        # same # nowTimeStamp = dateutil.parser.parse(value[1])
+        nowTimeStamp = datetime.now()
+        
         try:
-            client.send_sample(data['Serial'], json.dumps(value[0]), dateutil.parser.parse(value[1]).strftime(
+            client.send_sample(data['Serial'], json.dumps(value[0]), nowTimeStamp.strftime(
                 '%Y-%m-%d %H:%M:%S.%f'))
             publish.single("athome", json.dumps(value, ensure_ascii=False).encode('utf-8'), qos=2)
+            # cloudClient.send_sample()
         except GraphQLClient.Error as e:
             print('[GraphQLClientError] %s' % e, file=sys.stderr)
 

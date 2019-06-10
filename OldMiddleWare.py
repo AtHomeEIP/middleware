@@ -93,7 +93,7 @@ def detect_new_modules(current_modules):
 def start_module_daemon(module):
     if fork() == 0:
         read_data_from_serial(open_serial_port(module))
-        sys.exit(0)
+    # sys.exit(0)
 
 
 if __name__ == "__main__":
