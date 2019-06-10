@@ -213,7 +213,7 @@ insertingModuleInDb = False
 
 def sendToAPI(module, data):
     client = GraphQLClient('http://localhost:8080/graphql')
-    cloudClient = CloudClient(api_url='https://woodbox.io/graphql')
+    #cloudClient = CloudClient(api_url='https://woodbox.io/graphql')
 
     if data['Serial'] == 0 and insertingModuleInDb is False:
         global insertingModuleInDb = True
