@@ -14,7 +14,7 @@ def open_serial_port(name):
     try:
         serial_port = QSerialPort()
         serial_port.setPortName(name)
-        serial_port.setBaudRate(QSerialPort.Baud9600, QSerialPort.AllDirections)
+        serial_port.setBaudRate(QSerialPort.Baud115200, QSerialPort.AllDirections)
         serial_port.setParity(QSerialPort.NoParity)
         serial_port.setStopBits(QSerialPort.OneStop)
         serial_port.setDataBits(QSerialPort.Data8)
@@ -93,7 +93,7 @@ def detect_new_modules(current_modules):
 def start_module_daemon(module):
     if fork() == 0:
         read_data_from_serial(open_serial_port(module))
-    # sys.exit(0)
+    sys.exit(0)
 
 
 if __name__ == "__main__":

@@ -212,11 +212,12 @@ from src.CloudClient import CloudClient
 insertingModuleInDb = False
 
 def sendToAPI(module, data):
+    global insertingModuleInDb
     client = GraphQLClient('http://localhost:8080/graphql')
     #cloudClient = CloudClient(api_url='https://woodbox.io/graphql')
 
     if data['Serial'] == 0 and insertingModuleInDb is False:
-        global insertingModuleInDb = True
+        insertingModuleInDb = True
         try:
             name = data['Data'][0]['Label']
             common_name = get_common_name(name)
@@ -232,8 +233,8 @@ def sendToAPI(module, data):
         set_date_time(module)
         set_wifi(module)
         set_end_point(module)
-    else if data['Serial'] != 0:
-        global insertingModuleInDb = False
+    elif data['Serial'] != 0:
+        insertingModuleInDb = False
     values = []
     for sample in data['Data']:
         if type(sample['Value']) is not dict:
@@ -266,13 +267,19 @@ def sendToAPI(module, data):
         #     continue
 
         # same # nowTimeStamp = dateutil.parser.parse(value[1])
+        timeStamp = datetime(value[1].get('year', 2018), value[1].get('month', 1), value[1].get('day', 1), value[1].get('hour', 0), value[1].get('minute', 0), value[1].get('second', 0))
         nowTimeStamp = datetime.now()
+
+        if not -60 < nowTimeStamp.timestamp() - timeStamp.timestamp() < 60:
+            # print('More than a minute out of sync, setting up again date time')
+            set_date_time(module)
         
         try:
             client.send_sample(data['Serial'], json.dumps(value[0]), nowTimeStamp.strftime(
                 '%Y-%m-%d %H:%M:%S.%f'))
-            publish.single("athome", json.dumps(value, ensure_ascii=False).encode('utf-8'), qos=2)
+            # publish.single("athome", json.dumps(value, ensure_ascii=False).encode('utf-8'), qos=2)
             # cloudClient.send_sample()
+            # print(data['Serial'], json.dumps(value[0]))
         except GraphQLClient.Error as e:
             print('[GraphQLClientError] %s' % e, file=sys.stderr)
 
@@ -378,7 +385,6 @@ def upload_data(mod):
         }
         data.append(prev_data)
     parse_byte(mod)
-    print(data)
     sendToAPI(mod, {
         'Serial': serial,
         'Data': data
